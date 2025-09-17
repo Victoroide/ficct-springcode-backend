@@ -1,0 +1,3 @@
+"""
+Collaboration Tests package initialization.
+"""

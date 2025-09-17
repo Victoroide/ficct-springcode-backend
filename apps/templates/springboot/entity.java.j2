@@ -1,0 +1,174 @@
+package {{ package_name }};
+
+{% for import in imports %}
+import {{ import }};
+{% endfor %}
+
+/**
+ * {{ class_name }} JPA Entity
+ * Generated from UML diagram
+ */
+{% for annotation in class_annotations %}
+{{ annotation }}
+{% endfor %}
+public class {{ class_name }} {
+
+{% for attr in attributes %}
+    {% if attr.documentation %}
+    /**
+     * {{ attr.documentation }}
+     */
+    {% endif %}
+    {% for annotation in attr.annotations %}
+    {{ annotation }}
+    {% endfor %}
+    private {{ attr.type }} {{ attr.name }}{% if attr.default_value %} = {{ attr.default_value }}{% endif %};
+
+{% endfor %}
+{% for rel in relationships %}
+    /**
+     * {{ rel.field_name | capitalize_first }} relationship
+     */
+    {% if rel.jpa_annotation %}
+    {{ rel.jpa_annotation }}{% if rel.fetch_type %}(fetch = FetchType.{{ rel.fetch_type }}{% if rel.cascade_types %}, cascade = {{% for cascade in rel.cascade_types %}{{ cascade }}{% if not loop.last %}, {% endif %}{% endfor %}}{% endif %}){% endif %}
+    {% endif %}
+    {% if rel.join_column %}
+    @JoinColumn(name = "{{ rel.join_column }}")
+    {% endif %}
+    {% if rel.mapped_by %}
+    @JoinColumn(mappedBy = "{{ rel.mapped_by }}")
+    {% endif %}
+    private {% if rel.is_collection %}List<{{ rel.target_class }}>{% else %}{{ rel.target_class }}{% endif %} {{ rel.field_name }};
+
+{% endfor %}
+    /**
+     * Default constructor
+     */
+    public {{ class_name }}() {
+        {% if relationships %}
+        // Initialize collections
+        {% for rel in relationships %}
+        {% if rel.is_collection %}
+        this.{{ rel.field_name }} = new ArrayList<>();
+        {% endif %}
+        {% endfor %}
+        {% endif %}
+    }
+
+{% if constructors %}
+{% for constructor in constructors %}
+    {% if constructor.type == 'parameterized' %}
+    /**
+     * Constructor with required fields
+     */
+    public {{ class_name }}({% for param in constructor.parameters %}{{ param.type }} {{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %}) {
+        this();
+        {{ constructor.body }}
+    }
+    {% endif %}
+{% endfor %}
+{% endif %}
+
+    // Getters and Setters
+{% for attr in attributes %}
+    /**
+     * Get {{ attr.name }}
+     * @return {{ attr.type }}
+     */
+    public {{ attr.type }} get{{ attr.name | capitalize_first }}() {
+        return {{ attr.name }};
+    }
+
+    /**
+     * Set {{ attr.name }}
+     * @param {{ attr.name }} {{ attr.type }}
+     */
+    public void set{{ attr.name | capitalize_first }}({{ attr.type }} {{ attr.name }}) {
+        this.{{ attr.name }} = {{ attr.name }};
+    }
+
+{% endfor %}
+{% for rel in relationships %}
+    /**
+     * Get {{ rel.field_name }}
+     * @return {% if rel.is_collection %}List<{{ rel.target_class }}>{% else %}{{ rel.target_class }}{% endif %}
+     */
+    public {% if rel.is_collection %}List<{{ rel.target_class }}>{% else %}{{ rel.target_class }}{% endif %} get{{ rel.field_name | capitalize_first }}() {
+        return {{ rel.field_name }};
+    }
+
+    /**
+     * Set {{ rel.field_name }}
+     * @param {{ rel.field_name }} {% if rel.is_collection %}List<{{ rel.target_class }}>{% else %}{{ rel.target_class }}{% endif %}
+     */
+    public void set{{ rel.field_name | capitalize_first }}({% if rel.is_collection %}List<{{ rel.target_class }}>{% else %}{{ rel.target_class }}{% endif %} {{ rel.field_name }}) {
+        this.{{ rel.field_name }} = {{ rel.field_name }};
+    }
+
+    {% if rel.is_collection %}
+    /**
+     * Add {{ rel.target_class }} to {{ rel.field_name }}
+     * @param {{ rel.target_class | snake_case }} {{ rel.target_class }}
+     */
+    public void add{{ rel.target_class }}({{ rel.target_class }} {{ rel.target_class | snake_case }}) {
+        if (this.{{ rel.field_name }} == null) {
+            this.{{ rel.field_name }} = new ArrayList<>();
+        }
+        this.{{ rel.field_name }}.add({{ rel.target_class | snake_case }});
+    }
+
+    /**
+     * Remove {{ rel.target_class }} from {{ rel.field_name }}
+     * @param {{ rel.target_class | snake_case }} {{ rel.target_class }}
+     */
+    public void remove{{ rel.target_class }}({{ rel.target_class }} {{ rel.target_class | snake_case }}) {
+        if (this.{{ rel.field_name }} != null) {
+            this.{{ rel.field_name }}.remove({{ rel.target_class | snake_case }});
+        }
+    }
+    {% endif %}
+
+{% endfor %}
+{% if methods %}
+    // Custom Methods
+{% for method in methods %}
+    /**
+     * {{ method.documentation or method.name }}
+     * {% for param in method.parameters %}
+     * @param {{ param.name }} {{ param.type }}
+     * {% endfor %}
+     * @return {{ method.return_type }}
+     */
+    {% for annotation in method.annotations %}
+    {{ annotation }}
+    {% endfor %}
+    {{ method.visibility }} {% if method.is_static %}static {% endif %}{{ method.return_type }} {{ method.name }}({% for param in method.parameters %}{{ param.type }} {{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %}) {
+        {{ method.body }}
+    }
+
+{% endfor %}
+{% endif %}
+    // Object Methods
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        {{ class_name }} that = ({{ class_name }}) o;
+        return Objects.equals({% for attr in attributes %}{% if attr.name.lower() == 'id' %}{{ attr.name }}{% break %}{% endfor %}{% else %}id{% endfor %}, that.{% for attr in attributes %}{% if attr.name.lower() == 'id' %}{{ attr.name }}{% break %}{% endfor %}{% else %}id{% endfor %});
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash({% for attr in attributes %}{% if attr.name.lower() == 'id' %}{{ attr.name }}{% break %}{% endfor %}{% else %}id{% endfor %});
+    }
+
+    @Override
+    public String toString() {
+        return "{{ class_name }}{" +
+{% for attr in attributes %}
+                "{{ attr.name }}=" + {{ attr.name }} +{% if not loop.last %}
+{% endif %}
+{% endfor %}
+                '}';
+    }
+}

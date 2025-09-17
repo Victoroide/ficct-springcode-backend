@@ -1,0 +1,59 @@
+package {{ package_name }};
+
+{% for import in imports %}
+import {{ import }};
+{% endfor %}
+import {{ entity_package }}.{{ entity_name }};
+
+/**
+ * {{ repository_name }} JPA Repository
+ * Repository interface for {{ entity_name }} entity operations
+ */
+@Repository
+public interface {{ repository_name }} extends JpaRepository<{{ entity_name }}, {{ id_type }}> {
+
+{% for method in custom_methods %}
+    /**
+     * {{ method.description }}
+     * {% for param in method.parameters %}
+     * @param {{ param.name }} {{ param.type }}
+     * {% endfor %}
+     * @return {{ method.return_type }}
+     */
+    {% if method.query_annotation %}
+    {{ method.query_annotation }}
+    {% endif %}
+    {{ method.return_type }} {{ method.name }}({% for param in method.parameters %}{{ param.type }} {{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %});
+
+{% endfor %}
+{% for method in query_methods %}
+    /**
+     * {{ method.description }}
+     * {% for param in method.parameters %}
+     * @param {{ param.name }} {{ param.type }}
+     * {% endfor %}
+     * @return {{ method.return_type }}
+     */
+    {% if method.query_annotation %}
+    {{ method.query_annotation }}
+    {% endif %}
+    {{ method.return_type }} {{ method.name }}({% for param in method.parameters %}{{ param.type }} {{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %});
+
+{% endfor %}
+{% for method in native_queries %}
+    /**
+     * {{ method.description }}
+     * {% for param in method.parameters %}
+     * @param {{ param.name }} {{ param.type }}
+     * {% endfor %}
+     * @return {{ method.return_type }}
+     */
+    {% if method.modifying %}
+    @Modifying
+    @Transactional
+    {% endif %}
+    {{ method.query_annotation }}
+    {{ method.return_type }} {{ method.name }}({% for param in method.parameters %}@Param("{{ param.name }}") {{ param.type }} {{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %});
+
+{% endfor %}
+}

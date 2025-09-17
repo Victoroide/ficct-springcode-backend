@@ -1,0 +1,81 @@
+package {{ package_name }};
+
+{% for import in imports %}
+import {{ import }};
+{% endfor %}
+
+/**
+ * {{ dto_name }} Data Transfer Object
+ * DTO for {{ entity_name }} entity
+ */
+public class {{ dto_name }} {
+
+{% for field in fields %}
+    {% if field.documentation %}
+    /**
+     * {{ field.documentation }}
+     */
+    {% endif %}
+    {% for annotation in field.annotations %}
+    {{ annotation }}
+    {% endfor %}
+    private {{ field.type }} {{ field.name }};
+
+{% endfor %}
+    /**
+     * Default constructor
+     */
+    public {{ dto_name }}() {}
+
+    /**
+     * Constructor with all fields
+     */
+    public {{ dto_name }}({% for field in fields %}{{ field.type }} {{ field.name }}{% if not loop.last %}, {% endif %}{% endfor %}) {
+{% for field in fields %}
+        this.{{ field.name }} = {{ field.name }};
+{% endfor %}
+    }
+
+    // Getters and Setters
+{% for field in fields %}
+    /**
+     * Get {{ field.name }}
+     * @return {{ field.type }}
+     */
+    public {{ field.type }} get{{ field.name | capitalize_first }}() {
+        return {{ field.name }};
+    }
+
+    /**
+     * Set {{ field.name }}
+     * @param {{ field.name }} {{ field.type }}
+     */
+    public void set{{ field.name | capitalize_first }}({{ field.type }} {{ field.name }}) {
+        this.{{ field.name }} = {{ field.name }};
+    }
+
+{% endfor %}
+    // Object Methods
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        {{ dto_name }} that = ({{ dto_name }}) o;
+        return Objects.equals({% for field in fields %}{% if field.name.lower() == 'id' %}{{ field.name }}{% break %}{% endfor %}{% else %}id{% endfor %}, that.{% for field in fields %}{% if field.name.lower() == 'id' %}{{ field.name }}{% break %}{% endfor %}{% else %}id{% endfor %});
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash({% for field in fields %}{% if field.name.lower() == 'id' %}{{ field.name }}{% break %}{% endfor %}{% else %}id{% endfor %});
+    }
+
+    @Override
+    public String toString() {
+        return "{{ dto_name }}{" +
+{% for field in fields %}
+                "{{ field.name }}=" + {{ field.name }} +{% if not loop.last %}
+{% endif %}
+{% endfor %}
+                '}';
+    }
+}

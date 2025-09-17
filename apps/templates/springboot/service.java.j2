@@ -1,0 +1,87 @@
+package {{ package_name }};
+
+{% for import in imports %}
+import {{ import }};
+{% endfor %}
+
+/**
+ * {{ service_name }} Service
+ * Business logic service for {{ entity_name }} operations
+ */
+@Service
+@Transactional
+public class {{ service_name }} {
+
+    private final {{ repository_name }} {{ entity_name | snake_case }}Repository;
+
+    /**
+     * Constructor injection for {{ repository_name }}
+     */
+    @Autowired
+    public {{ service_name }}({{ repository_name }} {{ entity_name | snake_case }}Repository) {
+        this.{{ entity_name | snake_case }}Repository = {{ entity_name | snake_case }}Repository;
+    }
+
+{% for method in crud_methods %}
+    /**
+     * {{ method.description }}
+     * {% for param in method.parameters %}
+     * @param {{ param.name }} {{ param.type }}
+     * {% endfor %}
+     * @return {{ method.return_type }}
+     */
+    {% for annotation in method.annotations %}
+    {{ annotation }}
+    {% endfor %}
+    public {{ method.return_type }} {{ method.name }}({% for param in method.parameters %}{% if param.annotation %}{{ param.annotation }} {% endif %}{{ param.type }} {{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %}) {
+        {{ method.implementation }}
+    }
+
+{% endfor %}
+{% for method in custom_methods %}
+    /**
+     * {{ method.description }}
+     * {% for param in method.parameters %}
+     * @param {{ param.name }} {{ param.type }}
+     * {% endfor %}
+     * @return {{ method.return_type }}
+     */
+    {% for annotation in method.annotations %}
+    {{ annotation }}
+    {% endfor %}
+    public {{ method.return_type }} {{ method.name }}({% for param in method.parameters %}{{ param.type }} {{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %}) {
+        {{ method.implementation }}
+    }
+
+{% endfor %}
+{% for method in validation_methods %}
+    /**
+     * {{ method.description }}
+     * {% for param in method.parameters %}
+     * @param {{ param.name }} {{ param.type }}
+     * {% endfor %}
+     * @return {{ method.return_type }}
+     */
+    {% for annotation in method.annotations %}
+    {{ annotation }}
+    {% endfor %}
+    public {{ method.return_type }} {{ method.name }}({% for param in method.parameters %}{{ param.type }} {{ param.name }}{% if param.optional %} /* Optional */{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}) {
+        {{ method.implementation }}
+    }
+
+{% endfor %}
+    // DTO Mapping Methods
+{% for method in dto_mapping_methods %}
+    /**
+     * {{ method.description }}
+     * {% for param in method.parameters %}
+     * @param {{ param.name }} {{ param.type }}
+     * {% endfor %}
+     * @return {{ method.return_type }}
+     */
+    private {{ method.return_type }} {{ method.name }}({% for param in method.parameters %}{{ param.type }} {{ param.name }}{% if not loop.last %}, {% endif %}{% endfor %}) {
+        {{ method.implementation }}
+    }
+
+{% endfor %}
+}

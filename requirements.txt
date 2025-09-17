@@ -1,0 +1,69 @@
+# Django Framework
+Django
+djangorestframework
+drf-nested-routers
+django-cors-headers
+drf-spectacular
+django-filter
+
+# WebSocket & Real-time Collaboration
+channels
+channels-redis
+websockets
+
+# Database
+psycopg2-binary
+redis
+django-redis
+
+# Authentication & Security
+djangorestframework-simplejwt
+django-otp
+qrcode
+Pillow
+cryptography
+
+# Code Generation & Templates
+Jinja2
+MarkupSafe
+zipfile36
+
+# File Processing
+PyYAML
+toml
+
+# Async Tasks
+celery
+django-celery-beat
+django-celery-results
+
+# Email
+sendgrid
+
+# Rate Limiting & Security
+django-ratelimit
+django-axes
+django-environ
+
+# Validation & Utils
+django-phonenumber-field
+phonenumbers
+pytz
+jsonschema
+pydantic
+dnspython
+
+# Development & Testing
+pytest
+pytest-django
+pytest-asyncio
+factory-boy
+coverage
+
+# Production
+gunicorn
+whitenoise
+pyotp
+requests
+uvicorn
+daphne
