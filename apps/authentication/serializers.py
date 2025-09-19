@@ -33,19 +33,43 @@ class TwoFactorVerifySerializer(serializers.Serializer):
     """
     Serializer for CU1: Iniciar Sesión Empresarial - Step 2
     """
-    session_token = serializers.CharField(
-        help_text="2FA session token from login response"
+    token = serializers.CharField(
+        help_text="2FA code from authenticator app or backup code",
+        required=False
     )
     code = serializers.CharField(
-        min_length=6,
-        max_length=8,
-        help_text="2FA code from authenticator app or backup code"
+        help_text="2FA code from authenticator app or backup code (alias for token)",
+        required=False
+    )
+    user_id = serializers.CharField(
+        required=True,
+        help_text="User ID from login step"
+    )
+    email = serializers.EmailField(
+        required=True,
+        help_text="User email from login step"
     )
     
-    def validate_code(self, value):
-        """Clean and validate 2FA code."""
-        # Remove spaces and convert to uppercase for backup codes
-        return value.replace(' ', '').strip().upper()
+    def validate(self, data):
+        """Validate the user exists and handle code/token fields."""
+        from apps.accounts.models import EnterpriseUser
+        
+        if 'token' not in data and 'code' not in data:
+            raise serializers.ValidationError("Either 'token' or 'code' must be provided.")
+            
+        if 'token' not in data and 'code' in data:
+            data['token'] = data['code']
+            
+        if 'token' in data:
+            data['token'] = data['token'].replace(' ', '').strip().upper()
+        
+        try:
+            user = EnterpriseUser.objects.get(id=data['user_id'], corporate_email=data['email'])
+            data['user'] = user
+        except EnterpriseUser.DoesNotExist:
+            raise serializers.ValidationError("Invalid user credentials.")
+            
+        return data
 
 
 class LoginResponseSerializer(serializers.Serializer):

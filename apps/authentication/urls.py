@@ -29,7 +29,7 @@ urlpatterns = [
         'post': 'login'
     }), name='auth-login'),
     
-    path('api/v1/auth/verify-2fa/', AuthenticationViewSet.as_view({
+    path('api/v1/auth/2fa/verify/', AuthenticationViewSet.as_view({
         'post': 'verify_2fa'
     }), name='auth-verify-2fa'),
     
