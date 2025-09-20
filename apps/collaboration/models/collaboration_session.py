@@ -1,6 +1,3 @@
-"""
-CollaborationSession model for managing real-time UML editing sessions.
-"""
 
 from django.db import models
 from django.contrib.auth import get_user_model

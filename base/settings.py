@@ -1,37 +1,25 @@
-"""
-Django settings for Enterprise SpringBoot Code Generation Platform.
-
-Enterprise-grade configuration with PostgreSQL, Redis, JWT Authentication,
-2FA, and comprehensive security features.
-"""
 
 import os
 import environ
 from pathlib import Path
-from datetime import timedelta
+from datetime import timedelta, datetime
 from urllib.parse import urlparse, parse_qsl
 
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Initialize environment variables
 env = environ.Env(
     DEBUG=(bool, False)
 )
 
-# Read .env file
 environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
-# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-8!2zge&awu2!!)mf=f^mkg%e4&)@k_c)grk0sb)t++t((_u*#6')
 
-# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
 ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 
-# Application definition
 DJANGO_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',

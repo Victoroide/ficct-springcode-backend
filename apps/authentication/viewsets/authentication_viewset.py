@@ -112,9 +112,9 @@ class AuthenticationViewSet(EnterpriseViewSetMixin, viewsets.GenericViewSet):
     ViewSet for enterprise authentication operations.
     
     Provides endpoints for:
-    - Initial login (CU1 step 1)
-    - 2FA verification (CU1 step 2)
-    - Secure logout (CU2)
+    - Initial login
+    - 2FA verification
+    - Secure logout
     - Token refresh
     - User profile management
     """
@@ -273,7 +273,7 @@ class AuthenticationViewSet(EnterpriseViewSetMixin, viewsets.GenericViewSet):
     @action(detail=False, methods=['post'], permission_classes=[AllowAny])
     def login(self, request) -> Response:
         """
-        Enterprise user login endpoint (CU1 step 1).
+        Enterprise user login endpoint.
         
         Validates credentials and returns either JWT tokens (if 2FA disabled)
         or requires 2FA verification (if 2FA enabled).
@@ -360,12 +360,12 @@ class AuthenticationViewSet(EnterpriseViewSetMixin, viewsets.GenericViewSet):
             429: {'description': 'Rate limit exceeded'}
         }
     )
-    @method_decorator(ratelimit(key='ip', rate='10/min', method='POST'))  # Cambiado de 'user' a 'ip' para permitir usuarios no autenticados
+    @method_decorator(ratelimit(key='ip', rate='10/min', method='POST'))  # Changed from 'user' to 'ip' to allow unauthenticated users
     @transaction.atomic
     @action(detail=False, methods=['post'], url_path='2fa/verify')
     def verify_2fa(self, request) -> Response:
         """
-        2FA verification endpoint (CU1 step 2).
+        2FA verification endpoint.
         
         Verifies 2FA code and completes the login process.
         No authentication required, user is identified by user_id and email.
@@ -377,7 +377,7 @@ class AuthenticationViewSet(EnterpriseViewSetMixin, viewsets.GenericViewSet):
         raw_user_id = request.data.get('user_id', None)
         raw_email = request.data.get('email', None)
         
-        logger.info(f"Datos sin procesar - code: {raw_code}, token: {raw_token}, user_id: {raw_user_id}, email: {raw_email}")
+        logger.info(f"Raw data - code: {raw_code}, token: {raw_token}, user_id: {raw_user_id}, email: {raw_email}")
         
         try:
             serializer = TwoFactorVerifySerializer(data=request.data)
@@ -501,7 +501,7 @@ class AuthenticationViewSet(EnterpriseViewSetMixin, viewsets.GenericViewSet):
     @action(detail=False, methods=['post'], permission_classes=[IsAuthenticated])
     def logout(self, request) -> Response:
         """
-        Secure logout endpoint (CU2).
+        Secure logout endpoint.
         
         Blacklists refresh token and logs logout event.
         """

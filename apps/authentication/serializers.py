@@ -1,8 +1,3 @@
-"""
-Enterprise Authentication Serializers
-
-Serializers for authentication API endpoints supporting CU1, CU2, CU3.
-"""
 
 from rest_framework import serializers
 from django.contrib.auth.password_validation import validate_password
@@ -12,9 +7,6 @@ from apps.accounts.models import EnterpriseUser, AuthorizedDomain
 
 
 class LoginRequestSerializer(serializers.Serializer):
-    """
-    Serializer for CU1: Iniciar Sesión Empresarial - Step 1
-    """
     corporate_email = serializers.EmailField(
         help_text="Corporate email address"
     )
@@ -30,9 +22,6 @@ class LoginRequestSerializer(serializers.Serializer):
 
 
 class TwoFactorVerifySerializer(serializers.Serializer):
-    """
-    Serializer for CU1: Iniciar Sesión Empresarial - Step 2
-    """
     token = serializers.CharField(
         help_text="2FA code from authenticator app or backup code",
         required=False
@@ -86,7 +75,7 @@ class LoginResponseSerializer(serializers.Serializer):
 
 class LogoutRequestSerializer(serializers.Serializer):
     """
-    Serializer for CU2: Cerrar Sesión Segura
+    Serializer for secure logout functionality
     """
     refresh_token = serializers.CharField(
         required=False,
@@ -96,7 +85,7 @@ class LogoutRequestSerializer(serializers.Serializer):
 
 class RegistrationRequestSerializer(serializers.Serializer):
     """
-    Serializer for CU3: Registrar Usuario Empresarial
+    Serializer for enterprise user registration
     """
     corporate_email = serializers.EmailField(
         help_text="Corporate email address"

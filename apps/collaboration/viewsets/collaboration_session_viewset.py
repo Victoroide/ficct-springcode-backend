@@ -104,10 +104,6 @@ from ..serializers import (
     )
 )
 class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
-    """
-    Enterprise ViewSet for Collaboration Session management with atomic transactions,
-    real-time session tracking, soft delete support, and comprehensive audit logging.
-    """
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     filterset_fields = ['diagram', 'host_user', 'status']
@@ -116,9 +112,6 @@ class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet)
     search_fields = ['diagram__name', 'host_user__username']
     
     def get_queryset(self):
-        """
-        Enhanced queryset with optimized database queries and soft delete support.
-        """
         if getattr(self, 'swagger_fake_view', False):
             return CollaborationSession.objects.none()
             
@@ -141,9 +134,6 @@ class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet)
         return queryset
     
     def get_serializer_class(self):
-        """
-        Dynamic serializer class selection based on action.
-        """
         if self.action == 'list':
             return CollaborationSessionListSerializer
         elif self.action == 'create':
@@ -152,9 +142,6 @@ class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet)
     
     @transaction.atomic
     def perform_create(self, serializer):
-        """
-        Enhanced creation with session initialization and audit logging.
-        """
         try:
             # Validate diagram access and concurrent session limits
             diagram = serializer.validated_data.get('diagram')
@@ -201,9 +188,6 @@ class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet)
     
     @transaction.atomic
     def perform_update(self, serializer):
-        """
-        Enhanced update with audit logging and validation.
-        """
         try:
             original_data = {
                 'name': serializer.instance.name,
@@ -233,9 +217,6 @@ class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet)
     
     @transaction.atomic
     def perform_destroy(self, instance):
-        """
-        Soft delete implementation with session cleanup and audit logging.
-        """
         try:
             # End session if active
             if instance.is_active:
@@ -293,9 +274,6 @@ class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet)
     @transaction.atomic
     @action(detail=True, methods=['post'])
     def end_session(self, request, pk=None):
-        """
-        End an active collaboration session with comprehensive cleanup.
-        """
         try:
             session = self.get_object()
             
@@ -376,9 +354,6 @@ class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet)
     )
     @action(detail=True, methods=['get'])
     def statistics(self, request, pk=None):
-        """
-        Get comprehensive session statistics and metrics.
-        """
         try:
             session = self.get_object()
             stats = session.get_session_statistics()
@@ -442,9 +417,6 @@ class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet)
     @transaction.atomic
     @action(detail=True, methods=['post'])
     def join_session(self, request, pk=None):
-        """
-        Join an active collaboration session with role-based access.
-        """
         try:
             session = self.get_object()
             role = request.query_params.get('role', 'editor')

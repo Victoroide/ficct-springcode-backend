@@ -19,7 +19,6 @@ class EnterpriseUser(AbstractUser):
     """
     
     class UserRole(models.TextChoices):
-        """User roles in the enterprise system."""
         SUPER_ADMIN = 'SUPER_ADMIN', 'Super Administrator'
         ADMIN = 'ADMIN', 'Administrator'
         MANAGER = 'MANAGER', 'Manager'

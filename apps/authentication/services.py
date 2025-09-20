@@ -1,9 +1,3 @@
-"""
-Enterprise Authentication Services
-
-This module contains the business logic for authentication operations
-including login, logout, 2FA, and user management according to CU1, CU2, CU3.
-"""
 
 import secrets
 import pyotp
@@ -31,7 +25,7 @@ from apps.security.exceptions import (
 
 class AuthenticationService:
     """
-    Service for handling enterprise authentication operations (CU1, CU2).
+    Service for handling enterprise authentication operations.
     Implements the authentication flows from sequence diagrams.
     """
     
@@ -42,7 +36,7 @@ class AuthenticationService:
         request=None
     ) -> Dict[str, Any]:
         """
-        CU1: Iniciar Sesión Empresarial - Step 1: Autenticación Principal
+        Initial authentication step.
         
         Authenticates user credentials and handles rate limiting.
         Returns authentication result with next steps.
@@ -173,7 +167,7 @@ class AuthenticationService:
         request=None
     ) -> Dict[str, Any]:
         """
-        CU1: Iniciar Sesión Empresarial - Step 2: Verificación 2FA
+        Two-factor authentication verification step.
         
         Verifies 2FA code and completes authentication.
         """
@@ -253,7 +247,7 @@ class AuthenticationService:
     @staticmethod
     def _complete_login(user: EnterpriseUser, request=None) -> Dict[str, Any]:
         """
-        CU1: Complete login process - Steps 3-5: Establecimiento de Sesión, Auditoría, Dashboard
+        Complete login process.
         
         Generates JWT tokens, updates user info, and logs successful login.
         """
@@ -315,15 +309,15 @@ class AuthenticationService:
     @staticmethod
     def logout_user(user: EnterpriseUser, token: str = None, request=None) -> Dict[str, Any]:
         """
-        CU2: Cerrar Sesión Segura - All steps according to sequence diagram
+        Secure logout functionality.
         
         Handles secure logout with token blacklisting and cleanup.
         """
         with transaction.atomic():
-            # Step 1: Preparación de Cierre - Auto-save work (handled by frontend)
-            # Step 2: Notificación Colaborativa - Notify collaborators (future feature)
+            # Step 1: Auto-save work (handled by frontend)
+            # Step 2: Notify collaborators (future feature)
             
-            # Step 3: Invalidación Segura - Blacklist JWT token
+            # Step 3: Blacklist JWT token
             if token:
                 try:
                     refresh_token = RefreshToken(token)
@@ -332,7 +326,7 @@ class AuthenticationService:
                     # Token might already be invalid/blacklisted
                     pass
             
-            # Step 4: Auditoría de Salida - Log logout
+            # Step 4: Log logout
             AuditLog.log_action(
                 AuditLog.ActionType.LOGOUT,
                 request=request,
@@ -341,7 +335,7 @@ class AuthenticationService:
                 details={'logout_type': 'user_initiated'}
             )
             
-            # Step 5: Limpieza - Clear session data
+            # Step 5: Clear session data
             user.session_key = ''
             user.save(update_fields=['session_key'])
         
@@ -383,14 +377,14 @@ class AuthenticationService:
 
 class RegistrationService:
     """
-    Service for handling enterprise user registration (CU3).
+    Service for handling enterprise user registration.
     Implements the registration flow from sequence diagram.
     """
     
     @staticmethod
     def validate_corporate_domain(email: str) -> Tuple[bool, str]:
         """
-        CU3: Step 1 - Validación Corporativa
+        Corporate domain validation.
         
         Validates if email domain is authorized for registration.
         """
@@ -421,7 +415,7 @@ class RegistrationService:
         request=None
     ) -> Dict[str, Any]:
         """
-        CU3: Create new enterprise user account
+        Create new enterprise user account.
         
         Handles complete user creation process with validations.
         """
@@ -488,7 +482,7 @@ class RegistrationService:
     @staticmethod
     def send_verification_email(user: EnterpriseUser, request=None) -> Dict[str, Any]:
         """
-        CU3: Step 2 - Verificación Email
+        Email verification process.
         
         Sends email verification link to user.
         """
@@ -580,7 +574,7 @@ FICCT Enterprise Team
     @staticmethod
     def setup_2fa(user: EnterpriseUser, request=None) -> Dict[str, Any]:
         """
-        CU3: Step 4 - Configuración 2FA
+        Two-factor authentication setup.
         
         Set up 2FA for enterprise user.
         """

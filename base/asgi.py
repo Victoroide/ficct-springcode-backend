@@ -1,9 +1,3 @@
-"""
-ASGI config for Enterprise SpringBoot Code Generation Platform.
-
-Configures WebSocket support for real-time UML collaboration
-and HTTP routing for REST API endpoints.
-"""
 
 import os
 from django.core.asgi import get_asgi_application

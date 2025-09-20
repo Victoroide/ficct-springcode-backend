@@ -97,9 +97,9 @@ class RegistrationViewSet(EnterpriseViewSetMixin, viewsets.GenericViewSet):
     ViewSet for enterprise user registration operations.
     
     Provides endpoints for:
-    - Initial registration (CU3 step 1)
-    - Email verification (CU3 step 2)
-    - 2FA setup (CU3 step 3)
+    - Initial registration
+    - Email verification
+    - 2FA setup
     - Domain listing
     - Verification resend
     """
@@ -128,9 +128,7 @@ class RegistrationViewSet(EnterpriseViewSetMixin, viewsets.GenericViewSet):
     @transaction.atomic
     @action(detail=False, methods=['post'], url_path='register')
     def register(self, request) -> Response:
-        """
-        Enterprise user registration endpoint (CU3 step 1).
-        
+        """        
         Creates new user account with email verification requirement.
         """
         # Log the incoming registration data for debugging (excluding password)
@@ -259,9 +257,7 @@ class RegistrationViewSet(EnterpriseViewSetMixin, viewsets.GenericViewSet):
     @transaction.atomic
     @action(detail=False, methods=['post'], url_path='verify-email')
     def verify_email(self, request) -> Response:
-        """
-        Email verification endpoint (CU3 step 2).
-        
+        """        
         Verifies user's email address and activates account.
         """
         serializer = EmailVerificationSerializer(data=request.data)
@@ -305,9 +301,7 @@ class RegistrationViewSet(EnterpriseViewSetMixin, viewsets.GenericViewSet):
     @transaction.atomic
     @action(detail=False, methods=['post'], url_path='setup-2fa')
     def setup_2fa(self, request) -> Response:
-        """
-        2FA setup endpoint (CU3 step 3).
-        
+        """        
         Sets up TOTP 2FA for the user account.
         """
         serializer = Setup2FASerializer(data=request.data)

@@ -1,7 +1,7 @@
 """
 Enterprise Authentication ViewSets
 
-REST API endpoints for CU1, CU2, CU3 enterprise authentication flows.
+REST API endpoints for enterprise authentication flows.
 """
 
 from rest_framework import status
@@ -69,7 +69,7 @@ User = get_user_model()
 )
 class AuthenticationViewSet(GenericViewSet):
     """
-    ViewSet for enterprise authentication operations (CU1, CU2).
+    ViewSet for enterprise authentication operations.
     """
     throttle_classes = [AnonRateThrottle]
     
@@ -87,7 +87,7 @@ class AuthenticationViewSet(GenericViewSet):
     @action(detail=False, methods=['post'], url_path='login')
     def login(self, request):
         """
-        CU1: Iniciar Sesión Empresarial - Step 1: Autenticación Principal
+        Enterprise user login.
         
         Validates user credentials and determines next steps (2FA or complete login).
         """
@@ -135,7 +135,7 @@ class AuthenticationViewSet(GenericViewSet):
     @action(detail=False, methods=['post'], url_path='verify-2fa')
     def verify_2fa(self, request):
         """
-        CU1: Iniciar Sesión Empresarial - Step 2: Verificación 2FA
+        Two-factor authentication verification.
         
         Verifies 2FA code and completes authentication process.
         """
@@ -172,7 +172,6 @@ class AuthenticationViewSet(GenericViewSet):
     @action(detail=False, methods=['post'], url_path='logout')
     def logout(self, request):
         """
-        CU2: Cerrar Sesión Segura
         
         Securely logs out user and invalidates tokens.
         """
@@ -235,7 +234,7 @@ class AuthenticationViewSet(GenericViewSet):
 )
 class RegistrationViewSet(GenericViewSet):
     """
-    ViewSet for enterprise user registration operations (CU3).
+    ViewSet for enterprise user registration operations
     """
     permission_classes = [AllowAny]
     throttle_classes = [AnonRateThrottle]
@@ -253,9 +252,7 @@ class RegistrationViewSet(GenericViewSet):
     
     @action(detail=False, methods=['post'], url_path='register')
     def register(self, request):
-        """
-        CU3: Registrar Usuario Empresarial
-        
+        """        
         Complete enterprise user registration with domain validation.
         """
         serializer = RegistrationRequestSerializer(data=request.data)
@@ -299,9 +296,7 @@ class RegistrationViewSet(GenericViewSet):
     
     @action(detail=False, methods=['post'], url_path='verify-email')
     def verify_email(self, request):
-        """
-        CU3: Step 2 - Verificación Email
-        
+        """        
         Verify corporate email address with token.
         """
         serializer = EmailVerificationSerializer(data=request.data)
@@ -324,9 +319,7 @@ class RegistrationViewSet(GenericViewSet):
     
     @action(detail=False, methods=['post'], url_path='setup-2fa')
     def setup_2fa(self, request):
-        """
-        CU3: Step 4 - Configuración 2FA
-        
+        """        
         Initialize 2FA setup for authenticated user.
         """
         try:

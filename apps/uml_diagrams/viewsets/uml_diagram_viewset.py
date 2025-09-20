@@ -31,14 +31,11 @@ class UMLDiagramViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
     queryset = UMLDiagram.objects.all()
     
     def get_queryset(self):
-        # Handle schema generation
         if getattr(self, 'swagger_fake_view', False):
             return UMLDiagram.objects.none()
         
-        # Get base queryset with enterprise filtering
         queryset = super().get_queryset()
         
-        # Apply user-based filtering
         return queryset.filter(
             project__workspace__owner=self.request.user
         ).select_related('project', 'created_by', 'last_modified_by').prefetch_related(

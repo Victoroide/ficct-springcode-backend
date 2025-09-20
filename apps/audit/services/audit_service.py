@@ -7,15 +7,8 @@ logger = logging.getLogger('audit_service')
 
 
 class AuditService:
-    """
-    Enterprise audit service for comprehensive user action logging.
-    
-    Provides centralized audit logging functionality with structured
-    data capture and security event tracking.
-    """
     
     def __init__(self):
-        """Initialize the audit service."""
         pass
     
     def log_user_action(self, user, action, ip_address, details=None, resource=None):

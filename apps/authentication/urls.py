@@ -1,30 +1,19 @@
-"""
-Enterprise Authentication URLs - RESTful Architecture
 
-Consolidated URL configuration for authentication endpoints following RESTful conventions.
-Integrates all authentication, registration, user management, sessions, audit logs, and domain management.
-"""
-
-from django.urls import path, include
+from django.urls import path, include, re_path
 from rest_framework.routers import DefaultRouter
 
-# Import from viewsets directory
 from .viewsets import AuthenticationViewSet, RegistrationViewSet
 
-# Create router for RESTful ViewSets
 router = DefaultRouter()
 
-# Core authentication and registration (non-CRUD actions)
 router.register(r'auth', AuthenticationViewSet, basename='auth')  
 router.register(r'registration', RegistrationViewSet, basename='registration')
 
 app_name = 'authentication'
 
 urlpatterns = [
-    # All endpoints are now handled by the router following RESTful conventions
     path('api/v1/', include(router.urls)),
     
-    # Custom authentication actions (non-CRUD)
     path('api/v1/auth/login/', AuthenticationViewSet.as_view({
         'post': 'login'
     }), name='auth-login'),
@@ -41,7 +30,6 @@ urlpatterns = [
         'post': 'refresh_token'
     }), name='auth-refresh-token'),
     
-    # Custom registration actions (non-CRUD)
     path('api/v1/registration/register/', RegistrationViewSet.as_view({
         'post': 'register'
     }), name='registration-register'),
