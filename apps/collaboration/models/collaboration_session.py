@@ -54,6 +54,7 @@ class CollaborationSession(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     ended_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
     
     class Meta:
         db_table = 'collaboration_sessions'
@@ -96,7 +97,8 @@ class CollaborationSession(models.Model):
         """End collaboration session and cleanup."""
         self.status = self.SessionStatus.ENDED
         self.ended_at = timezone.now()
-        self.save()
+        self.is_active = False
+        self.save(update_fields=['status', 'ended_at', 'is_active'])
         
         # Mark all participants as inactive
         self.participants_detail.update(

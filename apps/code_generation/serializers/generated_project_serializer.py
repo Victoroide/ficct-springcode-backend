@@ -87,13 +87,13 @@ class GeneratedProjectSerializer(serializers.ModelSerializer):
             'total_files', 'file_count_display', 'zip_file_size', 'size_display',
             'zip_file_path', 'download_url', 'is_downloadable', 'expires_in_hours',
             'download_count', 'last_accessed',
-            'generated_at', 'status',
+            'generated_at', 'status', 'is_archived', 'archived_at', 'restored_at',
             'file_structure', 'file_breakdown', 'project_statistics'
         ]
         read_only_fields = [
             'id', 'total_files', 'zip_file_size', 'zip_file_path',
             'download_count', 'last_accessed', 'status',
-            'generated_at', 'last_accessed'
+            'generated_at', 'last_accessed', 'is_archived', 'archived_at', 'restored_at'
         ]
     
     @extend_schema_field(serializers.DictField())

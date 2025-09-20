@@ -70,7 +70,7 @@ from base.swagger.enterprise_documentation import get_error_responses
                 name='ordering',
                 type=OpenApiTypes.STR,
                 location=OpenApiParameter.QUERY,
-                description="Order by: created_at, updated_at, project_name, download_count, total_size"
+                description="Order by: generated_at, updated_at, project_name, download_count, total_size"
             ),
         ],
         responses={
@@ -130,8 +130,8 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['generation_request', 'status', 'generated_by', 'is_archived']
     search_fields = ['project_name', 'description', 'metadata']
-    ordering_fields = ['created_at', 'updated_at', 'project_name', 'download_count', 'total_size']
-    ordering = ['-created_at']
+    ordering_fields = ['generated_at', 'updated_at', 'project_name', 'download_count', 'total_size']
+    ordering = ['-generated_at']
     
     def get_serializer_class(self):
         """Return appropriate serializer class based on action with comprehensive mapping."""
@@ -152,7 +152,7 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
             'generation_request',
             'generated_by'
         ).prefetch_related(
-            'generation_request__created_by'
+            'generation_request__requested_by'
         )
         
         # Staff users have access to all projects
@@ -161,7 +161,7 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
         
         # Regular users can only access their own generated projects
         return base_queryset.filter(
-            generation_request__created_by=self.request.user
+            generation_request__requested_by=self.request.user
         ).exclude(
             # Exclude soft deleted items
             status='DELETED'
@@ -230,7 +230,7 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
         """
         try:
             # Validate user permissions for deletion
-            if not self.request.user.is_staff and instance.generation_request.created_by != self.request.user:
+            if not self.request.user.is_staff and instance.generation_request.requested_by != self.request.user:
                 raise ValidationError({
                     'error': 'PERMISSION_DENIED',
                     'message': 'You do not have permission to delete this project'
@@ -308,7 +308,7 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
             project = self.get_object()
             
             # Validate user permissions for download
-            if not request.user.is_staff and project.generation_request.created_by != request.user:
+            if not request.user.is_staff and project.generation_request.requested_by != request.user:
                 raise ValidationError({
                     'error': 'DOWNLOAD_PERMISSION_DENIED',
                     'message': 'You do not have permission to download this project',
@@ -409,7 +409,7 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
             project = self.get_object()
             
             # Validate user permissions
-            if not request.user.is_staff and project.generation_request.created_by != request.user:
+            if not request.user.is_staff and project.generation_request.requested_by != request.user:
                 raise ValidationError({
                     'error': 'ACCESS_DENIED',
                     'message': 'You do not have permission to view this project structure'
@@ -474,7 +474,7 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
             project = self.get_object()
             
             # Validate user permissions
-            if not request.user.is_staff and project.generation_request.created_by != request.user:
+            if not request.user.is_staff and project.generation_request.requested_by != request.user:
                 raise ValidationError({
                     'error': 'ARCHIVE_PERMISSION_DENIED',
                     'message': 'You do not have permission to archive this project'
@@ -545,7 +545,7 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
             project = self.get_object()
             
             # Validate user permissions
-            if not request.user.is_staff and project.generation_request.created_by != request.user:
+            if not request.user.is_staff and project.generation_request.requested_by != request.user:
                 raise ValidationError({
                     'error': 'RESTORE_PERMISSION_DENIED',
                     'message': 'You do not have permission to restore this project'
@@ -677,12 +677,12 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
             ]
             
             # Recent projects (top 5)
-            recent_projects = user_projects.order_by('-created_at')[:5]
+            recent_projects = user_projects.order_by('-generated_at')[:5]
             stats["recent_projects"] = [
                 {
                     "id": str(project.id),
                     "name": project.project_name,
-                    "created_at": project.created_at.isoformat(),
+                    "created_at": project.generated_at.isoformat(),
                     "file_count": project.file_count or 0,
                     "status": project.status,
                     "is_archived": project.is_archived
@@ -785,7 +785,7 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
                         'id': project.id,
                         'name': project.project_name,
                         'size': project.total_size or 0,
-                        'owner': project.generation_request.created_by.username if project.generation_request else 'Unknown'
+                        'owner': project.generation_request.requested_by.username if project.generation_request else 'Unknown'
                     }
                     
                     # Calculate freed space
@@ -895,7 +895,7 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
             project = self.get_object()
             
             # Validate user permissions
-            if not request.user.is_staff and project.generation_request.created_by != request.user:
+            if not request.user.is_staff and project.generation_request.requested_by != request.user:
                 raise ValidationError({
                     'error': 'EXTEND_PERMISSION_DENIED',
                     'message': 'You do not have permission to extend this project expiration'
@@ -1000,7 +1000,7 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
                             'lifecycle_info': {
                                 'status': 'ACTIVE',
                                 'is_archived': False,
-                                'created_at': '2024-01-15T10:00:00Z'
+                                'generated_at': '2024-01-15T10:00:00Z'
                             }
                         }
                     }
@@ -1016,7 +1016,7 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
             project = self.get_object()
             
             # Validate user permissions
-            if not request.user.is_staff and project.generation_request.created_by != request.user:
+            if not request.user.is_staff and project.generation_request.requested_by != request.user:
                 raise ValidationError({
                     'error': 'METADATA_ACCESS_DENIED',
                     'message': 'You do not have permission to view this project metadata'
@@ -1027,7 +1027,7 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
                 "metadata": project.metadata or {},
                 "generation_info": {
                     "generation_request_id": project.generation_request.id if project.generation_request else None,
-                    "generated_at": project.created_at.isoformat(),
+                    "generated_at": project.generated_at.isoformat(),
                     "version": getattr(project, 'version', '1.0.0'),
                     "generated_by": project.generated_by.username if project.generated_by else 'System',
                     "generator_version": getattr(project, 'generator_version', None)
@@ -1049,7 +1049,7 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
                 "lifecycle_info": {
                     "status": getattr(project, 'status', 'ACTIVE'),
                     "is_archived": project.is_archived,
-                    "created_at": project.created_at.isoformat(),
+                    "created_at": project.generated_at.isoformat(),
                     "updated_at": project.updated_at.isoformat() if project.updated_at else None,
                     "archived_at": project.archived_at.isoformat() if hasattr(project, 'archived_at') and project.archived_at else None
                 }

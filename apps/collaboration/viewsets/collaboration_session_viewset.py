@@ -126,8 +126,8 @@ class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet)
             diagram__project__workspace__owner=self.request.user
         ).select_related(
             'diagram', 
-            'created_by',
-            'updated_by'
+            'project',
+            'host_user'
         ).prefetch_related(
             'participants',
             'participants__user',
@@ -176,8 +176,7 @@ class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet)
                 })
             
             session = serializer.save(
-                created_by=self.request.user,
-                updated_by=self.request.user,
+                host_user=self.request.user,
                 started_at=timezone.now(),
                 is_active=True
             )
@@ -213,7 +212,7 @@ class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet)
                 'is_active': serializer.instance.is_active
             }
             
-            session = serializer.save(updated_by=self.request.user)
+            session = serializer.save()
             
             # Audit logging
             AuditService.log_user_action(
@@ -245,8 +244,7 @@ class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet)
             # Soft delete
             instance.status = 'DELETED'
             instance.deleted_at = timezone.now()
-            instance.updated_by = self.request.user
-            instance.save(update_fields=['status', 'deleted_at', 'updated_by'])
+            instance.save(update_fields=['status', 'deleted_at'])
             
             # Audit logging
             AuditService.log_user_action(

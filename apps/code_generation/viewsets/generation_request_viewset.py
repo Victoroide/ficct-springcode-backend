@@ -117,8 +117,8 @@ class GenerationRequestViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
             
         queryset = GenerationRequest.objects.select_related(
             'diagram',
-            'created_by',
-            'updated_by'
+            'requested_by',
+            'project'
         ).prefetch_related(
             'diagram__project',
             'generated_projects'

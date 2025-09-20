@@ -28,6 +28,7 @@ class UMLDiagramViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
     ordering = ['-updated_at']
     soft_delete_field = 'status'
     soft_delete_value = 'DELETED'
+    queryset = UMLDiagram.objects.all()
     
     def get_queryset(self):
         # Handle schema generation
@@ -40,7 +41,7 @@ class UMLDiagramViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
         # Apply user-based filtering
         return queryset.filter(
             project__workspace__owner=self.request.user
-        ).select_related('project', 'created_by', 'updated_by').prefetch_related(
+        ).select_related('project', 'created_by', 'last_modified_by').prefetch_related(
             'project__workspace'
         )
     

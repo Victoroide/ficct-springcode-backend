@@ -62,6 +62,10 @@ class GeneratedProject(models.Model):
         choices=ProjectStatus.choices,
         default=ProjectStatus.ACTIVE
     )
+    is_archived = models.BooleanField(default=False)
+    archived_at = models.DateTimeField(null=True, blank=True)
+    restored_at = models.DateTimeField(null=True, blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
     generated_by = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -185,7 +189,9 @@ class GeneratedProject(models.Model):
     def archive_project(self) -> None:
         """Archive the generated project."""
         self.status = self.ProjectStatus.ARCHIVED
-        self.save(update_fields=['status'])
+        self.is_archived = True
+        self.archived_at = timezone.now()
+        self.save(update_fields=['status', 'is_archived', 'archived_at'])
     
     def delete_project_files(self) -> bool:
         """Delete physical project files from storage."""
@@ -232,6 +238,24 @@ class GeneratedProject(models.Model):
             'last_accessed': self.last_accessed.isoformat()
         }
     
+    def is_downloadable(self) -> bool:
+        """Check if project is available for download."""
+        # Project must be active and not archived
+        if self.status != self.ProjectStatus.ACTIVE or self.is_archived:
+            return False
+            
+        # Must have a valid zip file path
+        if not self.zip_file_path or not os.path.exists(self.zip_file_path):
+            return False
+            
+        # Project must not be expired if it has an expiration date
+        if hasattr(self, 'expires_at') and self.expires_at:
+            from django.utils import timezone
+            if self.expires_at < timezone.now():
+                return False
+                
+        return True
+
     @classmethod
     def cleanup_old_projects(cls, days_old: int = 30) -> int:
         """Clean up old generated projects."""
