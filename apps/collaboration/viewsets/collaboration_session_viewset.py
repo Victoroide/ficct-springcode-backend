@@ -104,6 +104,7 @@ from ..serializers import (
     )
 )
 class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
+    queryset = CollaborationSession.objects.all()
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     filterset_fields = ['diagram', 'host_user', 'status']
@@ -139,6 +140,28 @@ class CollaborationSessionViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet)
         elif self.action == 'create':
             return CollaborationSessionCreateSerializer
         return CollaborationSessionDetailSerializer
+    
+    def create(self, request, *args, **kwargs):
+        """Override create to handle JSON parsing errors."""
+        try:
+            # Check if request data is valid
+            if hasattr(request, 'body') and request.content_type == 'application/json':
+                try:
+                    import json
+                    json.loads(request.body.decode('utf-8'))
+                except (ValueError, json.JSONDecodeError) as e:
+                    return Response(
+                        {'error': 'Invalid JSON format', 'details': str(e)},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            return super().create(request, *args, **kwargs)
+        except Exception as e:
+            if 'JSON parse error' in str(e):
+                return Response(
+                    {'error': 'Invalid JSON format', 'details': str(e)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            raise
     
     @transaction.atomic
     def perform_create(self, serializer):

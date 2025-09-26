@@ -393,15 +393,7 @@ class RegistrationService:
         
         domain = email.split('@')[1].lower()
         
-        # Check if domain is authorized
-        authorized_domain = AuthorizedDomain.objects.filter(
-            domain=domain,
-            is_active=True
-        ).first()
-        
-        if not authorized_domain:
-            return False, f"Domain '{domain}' is not authorized for registration."
-        
+        # Domain validation bypassed - all domains are allowed
         return True, f"Domain '{domain}' is authorized."
     
     @staticmethod

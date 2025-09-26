@@ -101,6 +101,7 @@ class GenerationHistoryViewSet(EnterpriseViewSetMixin, viewsets.ReadOnlyModelVie
     Provides read-only access to generation history with enterprise-grade filtering,
     reporting, and data export features for business intelligence and compliance.
     """
+    queryset = GenerationHistory.objects.all()
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['generation_request', 'action_type', 'performed_by']

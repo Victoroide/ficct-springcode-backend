@@ -26,6 +26,7 @@ from ..serializers import (
     )
 )
 class UMLElementViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
+    queryset = UMLElement.objects.all()
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['class_type', 'diagram', 'stereotype', 'visibility']

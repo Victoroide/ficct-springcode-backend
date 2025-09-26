@@ -13,7 +13,7 @@ from .registration_serializer import (
     EmailVerificationSerializer,
     Setup2FASerializer,
 )
-from .user_profile_serializer import UserProfileSerializer
+from .user_profile_serializer import UserProfileSerializer, PasswordChangeSerializer
 
 # Enterprise Management Serializers
 from .user_management_serializer import (
@@ -62,6 +62,7 @@ __all__ = [
     'EmailVerificationSerializer',
     'Setup2FASerializer',
     'UserProfileSerializer',
+    'PasswordChangeSerializer',
     
     # User Management
     'UserListSerializer',

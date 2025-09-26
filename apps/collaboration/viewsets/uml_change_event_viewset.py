@@ -104,6 +104,7 @@ class UMLChangeEventViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
     This ViewSet provides read-only access plus creation for tracking changes
     during collaborative editing sessions.
     """
+    queryset = UMLChangeEvent.objects.all()
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     filterset_fields = ['event_type', 'session', 'user', 'element_type']

@@ -133,6 +133,7 @@ class GenerationTemplateViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
     and lifecycle management with enterprise-grade security, audit logging, and transaction management.
     """
     
+    queryset = GenerationTemplate.objects.all()
     serializer_class = GenerationTemplateSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]

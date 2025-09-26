@@ -114,6 +114,7 @@ class UMLRelationshipViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
     Enterprise ViewSet for UML Relationship management with atomic transactions,
     soft delete support, comprehensive filtering, and audit logging.
     """
+    queryset = UMLRelationship.objects.all()
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     filterset_fields = ['relationship_type', 'diagram', 'source_class', 'target_class']

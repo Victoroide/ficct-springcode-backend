@@ -44,7 +44,7 @@ class WorkspaceCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Workspace
         fields = [
-            'name', 'description', 'workspace_type', 'settings',
+            'id', 'name', 'description', 'workspace_type', 'settings',
             'max_projects', 'max_members_per_project'
         ]
     
@@ -60,9 +60,8 @@ class WorkspaceCreateSerializer(serializers.ModelSerializer):
         user = self.context['request'].user
         existing = Workspace.objects.filter(
             name__iexact=value.strip(),
-            owner=user,
-            is_deleted=False
-        ).exists()
+            owner=user
+        ).exclude(status='DELETED').exists()
         
         if existing:
             raise serializers.ValidationError("You already have a workspace with this name")
@@ -164,7 +163,7 @@ class WorkspaceSerializer(serializers.ModelSerializer):
     @extend_schema_field(serializers.ListField())
     def get_active_projects(self, obj) -> list:
         """Get list of active projects."""
-        projects = obj.projects.filter(is_active=True, is_deleted=False)[:10]
+        projects = obj.projects.exclude(status='DELETED').filter(is_active=True)[:10]
         
         return [
             {

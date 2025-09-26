@@ -5,12 +5,13 @@ Professional-grade transaction management with atomic operations,
 comprehensive error handling, and audit logging.
 """
 
+import json
 from django.db import transaction
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.response import Response
-from rest_framework.exceptions import APIException
+from rest_framework.exceptions import APIException, ValidationError
 from apps.audit.services import AuditService
 import logging
 
@@ -64,7 +65,7 @@ class EnterpriseTransactionMixin:
             
             # Log successful creation
             self.log_transaction_event(
-                f"{self.__class__.__name__}_CREATE_SUCCESS",
+                "CREATE_SUCCESS",
                 instance=instance,
                 details={'fields': list(request.data.keys())}
             )
@@ -74,22 +75,32 @@ class EnterpriseTransactionMixin:
                 response_serializer.data,
                 status=status.HTTP_201_CREATED
             )
-            
-        except ValidationError as e:
+        except (ValidationError, DjangoValidationError) as e:
             logger.error(f"Validation error in {self.__class__.__name__} create: {str(e)}")
             self.log_transaction_event(
-                f"{self.__class__.__name__}_CREATE_VALIDATION_ERROR",
-                details={'error': str(e), 'data': request.data}
+                "CREATE_VALIDATION_ERROR",
+                details={'validation_errors': str(e)}
             )
             return Response(
                 {'error': 'Validation failed', 'details': str(e)},
                 status=status.HTTP_400_BAD_REQUEST
             )
             
+        except (ValueError, TypeError, json.JSONDecodeError) as e:
+            logger.warning(f"Invalid request data in {self.__class__.__name__} create: {str(e)}")
+            self.log_transaction_event(
+                "CREATE_BAD_REQUEST",
+                details={'error': str(e)}
+            )
+            return Response(
+                {'error': 'Invalid request data', 'details': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
         except Exception as e:
             logger.error(f"Unexpected error in {self.__class__.__name__} create: {str(e)}")
             self.log_transaction_event(
-                f"{self.__class__.__name__}_CREATE_ERROR",
+                "CREATE_ERROR",
                 details={'error': str(e)}
             )
             return Response(
@@ -126,7 +137,7 @@ class EnterpriseTransactionMixin:
             
             # Log successful update
             self.log_transaction_event(
-                f"{self.__class__.__name__}_UPDATE_SUCCESS",
+                "UPDATE_SUCCESS",
                 instance=updated_instance,
                 details={
                     'updated_fields': list(request.data.keys()),
@@ -138,10 +149,10 @@ class EnterpriseTransactionMixin:
             response_serializer = self.get_serializer(updated_instance)
             return Response(response_serializer.data)
             
-        except ValidationError as e:
+        except (ValidationError, DjangoValidationError) as e:
             logger.error(f"Validation error in {self.__class__.__name__} update: {str(e)}")
             self.log_transaction_event(
-                f"{self.__class__.__name__}_UPDATE_VALIDATION_ERROR",
+                "UPDATE_VALIDATION_ERROR",
                 instance=instance,
                 details={'error': str(e), 'data': request.data}
             )
@@ -150,10 +161,22 @@ class EnterpriseTransactionMixin:
                 status=status.HTTP_400_BAD_REQUEST
             )
             
+        except (ValueError, TypeError, json.JSONDecodeError) as e:
+            logger.warning(f"Invalid request data in {self.__class__.__name__} update: {str(e)}")
+            self.log_transaction_event(
+                "UPDATE_BAD_REQUEST",
+                instance=instance,
+                details={'error': str(e)}
+            )
+            return Response(
+                {'error': 'Invalid request data', 'details': str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+            
         except Exception as e:
             logger.error(f"Unexpected error in {self.__class__.__name__} update: {str(e)}")
             self.log_transaction_event(
-                f"{self.__class__.__name__}_UPDATE_ERROR",
+                "UPDATE_ERROR",
                 instance=instance,
                 details={'error': str(e)}
             )

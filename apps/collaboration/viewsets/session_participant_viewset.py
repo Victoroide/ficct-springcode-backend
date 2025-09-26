@@ -113,6 +113,7 @@ class SessionParticipantViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
     Enterprise ViewSet for Session Participant management with atomic transactions,
     real-time presence tracking, role-based access control, and comprehensive audit logging.
     """
+    queryset = SessionParticipant.objects.all()
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, OrderingFilter, SearchFilter]
     filterset_fields = ['session', 'user', 'role', 'is_active']

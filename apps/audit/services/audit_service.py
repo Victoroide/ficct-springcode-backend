@@ -11,7 +11,8 @@ class AuditService:
     def __init__(self):
         pass
     
-    def log_user_action(self, user, action, ip_address, details=None, resource=None):
+    @classmethod
+    def log_user_action(cls, user, action, resource_type=None, resource_id=None, ip_address=None, details=None, **kwargs):
         """
         Log user action with comprehensive audit trail.
         
@@ -26,27 +27,42 @@ class AuditService:
             AuditLog instance if successful, None if failed
         """
         try:
+            # Handle both authenticated and anonymous users
+            audit_user = None
+            if user and hasattr(user, 'is_authenticated') and user.is_authenticated:
+                audit_user = user
+            
             audit_data = {
-                'user': user if user.is_authenticated else None,
-                'action': action,
-                'ip_address': ip_address,
-                'timestamp': timezone.now(),
+                'user': audit_user,
+                'action_type': action,  # Map 'action' to 'action_type'
+                'ip_address': ip_address or '127.0.0.1',
                 'details': details or {},
+                'severity': 'LOW',  # Default severity
             }
             
             # Add resource information if provided
-            if resource:
-                audit_data.update({
-                    'content_type': ContentType.objects.get_for_model(resource),
-                    'object_id': str(resource.pk),
-                    'object_repr': str(resource)[:200]  # Limit length
-                })
+            if resource_type:
+                audit_data['resource_type'] = resource_type
+            if resource_id:
+                audit_data['resource_id'] = str(resource_id)
             
-            # Create audit log entry
-            audit_log = AuditLog.objects.create(**audit_data)
-            
-            logger.info(f"Audit log created: {action} by {user} from {ip_address}")
-            return audit_log
+            # Create audit log entry with error handling
+            try:
+                audit_log = AuditLog.objects.create(**audit_data)
+                logger.info(f"Audit log created: {action} by {user} from {ip_address}")
+                return audit_log
+            except Exception as create_error:
+                # Fallback - create minimal audit log
+                minimal_data = {
+                    'user': audit_user,
+                    'action_type': 'SYSTEM_ACTION',
+                    'ip_address': ip_address or '127.0.0.1',
+                    'details': {'original_action': action, 'error': str(create_error)},
+                    'severity': 'LOW',
+                }
+                audit_log = AuditLog.objects.create(**minimal_data)
+                logger.warning(f"Created fallback audit log due to error: {create_error}")
+                return audit_log
             
         except Exception as e:
             logger.error(f"Failed to create audit log: {str(e)}")

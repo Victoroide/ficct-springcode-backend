@@ -86,13 +86,8 @@ class UserCreateSerializer(serializers.ModelSerializer):
         ]
     
     def validate_email(self, value):
-        """Validate email domain is authorized."""
-        domain = value.split('@')[1] if '@' in value else None
-        if domain:
-            if not AuthorizedDomain.objects.filter(domain=domain, is_active=True).exists():
-                raise serializers.ValidationError(
-                    f"Email domain '{domain}' is not authorized for registration."
-                )
+        """Validate email format."""
+        # Domain validation disabled - all domains are allowed
         return value
     
     def validate(self, attrs):
@@ -117,13 +112,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         ]
     
     def validate_email(self, value):
-        """Validate email domain is authorized."""
-        domain = value.split('@')[1] if '@' in value else None
-        if domain:
-            if not AuthorizedDomain.objects.filter(domain=domain, is_active=True).exists():
-                raise serializers.ValidationError(
-                    f"Email domain '{domain}' is not authorized."
-                )
+        """Validate email format."""
+        # Domain validation disabled - all domains are allowed
         return value
 
 

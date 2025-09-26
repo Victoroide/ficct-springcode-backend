@@ -125,6 +125,7 @@ class GeneratedProjectViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
     with enterprise-grade security, audit logging, and transaction management.
     """
     
+    queryset = GeneratedProject.objects.all()
     serializer_class = GeneratedProjectSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]

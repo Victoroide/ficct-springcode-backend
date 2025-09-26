@@ -38,7 +38,7 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Project
         fields = [
-            'name', 'description', 'workspace', 'visibility', 
+            'id', 'name', 'description', 'workspace', 'visibility', 
             'springboot_config'
         ]
     
@@ -54,9 +54,8 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
         if workspace:
             existing = Project.objects.filter(
                 name__iexact=value.strip(),
-                workspace_id=workspace,
-                is_deleted=False
-            ).exists()
+                workspace_id=workspace
+            ).exclude(status='DELETED').exists()
             
             if existing:
                 raise serializers.ValidationError("A project with this name already exists in the workspace")
@@ -66,7 +65,8 @@ class ProjectCreateSerializer(serializers.ModelSerializer):
     def validate_workspace(self, value):
         user = self.context['request'].user
         
-        if not value.can_user_create_project(user):
+        # Check if user is workspace owner or has permission to create projects
+        if value.owner != user and not user.is_staff:
             raise serializers.ValidationError("You don't have permission to create projects in this workspace")
         
         return value

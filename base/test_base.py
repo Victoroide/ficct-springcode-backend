@@ -6,9 +6,12 @@ authentication, permissions, JWT token management, and standardized test pattern
 """
 
 import json
+import uuid
+from datetime import datetime, timedelta
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.conf import settings
 from rest_framework.test import APITestCase, APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework import status
@@ -24,38 +27,64 @@ class BaseTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         """Set up test data for the entire test class."""
+        # Generate unique suffix for this test class to avoid email conflicts
+        # Combination of timestamp and random UUID ensures uniqueness
+        email_suffix = f"{int(datetime.now().timestamp())}{uuid.uuid4().hex[:4]}"
+        class_suffix = uuid.uuid4().hex[:4]
+        
+        # Make emails unique across test runs and test classes
+        test_email = f'testuser_{email_suffix}_{class_suffix}@ficct-enterprise.com'
+        admin_email = f'admin_{email_suffix}_{class_suffix}@ficct-enterprise.com'
+        inactive_email = f'inactive_{email_suffix}_{class_suffix}@ficct-enterprise.com'
+        
         cls.test_user = User.objects.create_user(
-            email='testuser@ficct-enterprise.com',
+            corporate_email=test_email,
             password='TestPassword123!@#',
+            full_name='Test User',
             first_name='Test',
             last_name='User',
-            is_email_verified=True,
+            email_verified=True,
             is_active=True
         )
         
         cls.admin_user = User.objects.create_user(
-            email='admin@ficct-enterprise.com',
+            corporate_email=admin_email,
             password='AdminPassword123!@#',
+            full_name='Admin User',
             first_name='Admin',
             last_name='User',
-            is_email_verified=True,
+            email_verified=True,
             is_active=True,
             is_staff=True,
             is_superuser=True
         )
         
         cls.inactive_user = User.objects.create_user(
-            email='inactive@ficct-enterprise.com',
+            corporate_email=inactive_email,
             password='InactivePassword123!@#',
+            full_name='Inactive User',
             first_name='Inactive',
             last_name='User',
-            is_email_verified=False,
+            email_verified=False,
             is_active=False
         )
     
     def setUp(self):
         """Set up test environment for each test method."""
+        # Force complete authentication state reset for ALL tests
         self.client = APIClient()
+        self.client.logout()
+        self.client.credentials()  # Clear all headers
+        self.client.force_authenticate(user=None)  # Explicit unauthenticated state
+        
+        # Clear Django session state
+        from django.test import Client
+        if hasattr(self, '_pre_setup'):
+            self._pre_setup()
+        
+        # Ensure clean client state
+        self.client._credentials = {}
+        self.client._force_user = None
     
     def authenticate_user(self, user=None):
         """Authenticate a user and return JWT tokens."""
@@ -86,13 +115,19 @@ class BaseTestCase(TestCase):
     def create_test_users(self, count=3):
         """Create multiple test users for testing purposes."""
         users = []
+        # Generate unique suffix for these test users
+        # Combination of timestamp and random UUID ensures uniqueness
+        email_suffix = f"{int(datetime.now().timestamp())}{uuid.uuid4().hex[:4]}"
+        batch_suffix = uuid.uuid4().hex[:4]
+        
         for i in range(count):
             user = User.objects.create_user(
-                email=f'testuser{i}@ficct-enterprise.com',
+                corporate_email=f'testuser{i}_{email_suffix}_{batch_suffix}@ficct-enterprise.com',
                 password=f'TestPassword{i}123!@#',
+                full_name=f'Test{i} User{i}',
                 first_name=f'Test{i}',
                 last_name=f'User{i}',
-                is_email_verified=True,
+                email_verified=True,
                 is_active=True
             )
             users.append(user)
@@ -105,21 +140,32 @@ class BaseAPITestCase(APITestCase):
     @classmethod
     def setUpTestData(cls):
         """Set up test data for the entire test class."""
+        # Generate unique suffix for this test class to avoid email conflicts
+        # Combination of timestamp and random UUID ensures uniqueness
+        email_suffix = f"{int(datetime.now().timestamp())}{uuid.uuid4().hex[:4]}"
+        class_suffix = uuid.uuid4().hex[:4]
+        
+        # Make emails unique across test runs and test classes
+        test_email = f'apitest_{email_suffix}_{class_suffix}@ficct-enterprise.com'
+        admin_email = f'apiadmin_{email_suffix}_{class_suffix}@ficct-enterprise.com'
+        
         cls.test_user = User.objects.create_user(
-            email='apitest@ficct-enterprise.com',
+            corporate_email=test_email,
             password='APITestPassword123!@#',
+            full_name='API Test',
             first_name='API',
             last_name='Test',
-            is_email_verified=True,
+            email_verified=True,
             is_active=True
         )
         
         cls.admin_user = User.objects.create_user(
-            email='apiadmin@ficct-enterprise.com',
+            corporate_email=admin_email,
             password='APIAdminPassword123!@#',
+            full_name='API Admin',
             first_name='API',
             last_name='Admin',
-            is_email_verified=True,
+            email_verified=True,
             is_active=True,
             is_staff=True,
             is_superuser=True

@@ -2,7 +2,7 @@
 Enterprise User Model with corporate authentication and security features.
 """
 
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 from django.core.validators import EmailValidator
 from django.utils import timezone
@@ -10,6 +10,36 @@ from datetime import timedelta
 import secrets
 import pyotp
 from typing import Optional, Tuple, List, Dict
+
+
+class EnterpriseUserManager(BaseUserManager):
+    """Custom user manager for EnterpriseUser model that uses corporate_email instead of username."""
+    
+    def create_user(self, corporate_email, full_name, password=None, **extra_fields):
+        """Create and save a regular user."""
+        if not corporate_email:
+            raise ValueError('Corporate email is required')
+        if not full_name:
+            raise ValueError('Full name is required')
+            
+        email = self.normalize_email(corporate_email)
+        user = self.model(corporate_email=email, full_name=full_name, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
+    
+    def create_superuser(self, corporate_email, full_name, password=None, **extra_fields):
+        """Create and save a superuser."""
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        extra_fields.setdefault('is_active', True)
+        
+        if extra_fields.get('is_staff') is not True:
+            raise ValueError('Superuser must have is_staff=True.')
+        if extra_fields.get('is_superuser') is not True:
+            raise ValueError('Superuser must have is_superuser=True.')
+            
+        return self.create_user(corporate_email, full_name, password, **extra_fields)
 
 
 class EnterpriseUser(AbstractUser):
@@ -95,6 +125,29 @@ class EnterpriseUser(AbstractUser):
         help_text='Backup codes for 2FA recovery'
     )
     
+    # Email Verification Fields
+    email_verified = models.BooleanField(
+        default=False,
+        help_text='Whether corporate email has been verified'
+    )
+    email_verification_token = models.CharField(
+        max_length=64,
+        blank=True,
+        help_text='Token for email verification'
+    )
+    
+    # Activity Tracking
+    last_activity = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text='Last recorded user activity'
+    )
+    session_key = models.CharField(
+        max_length=40,
+        blank=True,
+        help_text='Current session key'
+    )
+    
     # Audit Fields
     last_login_ip = models.GenericIPAddressField(
         null=True,
@@ -113,15 +166,6 @@ class EnterpriseUser(AbstractUser):
         auto_now=True,
         help_text='Last profile update timestamp'
     )
-    email_verified = models.BooleanField(
-        default=False,
-        help_text='Whether corporate email has been verified'
-    )
-    email_verification_token = models.CharField(
-        max_length=64,
-        blank=True,
-        help_text='Token for email verification'
-    )
     
     # Activity tracking
     last_activity = models.DateTimeField(
@@ -138,6 +182,8 @@ class EnterpriseUser(AbstractUser):
     USERNAME_FIELD = 'corporate_email'
     REQUIRED_FIELDS = ['full_name', 'role']
     
+    objects = EnterpriseUserManager()
+    
     class Meta:
         app_label = 'accounts'
         verbose_name = 'Enterprise User'
@@ -148,7 +194,6 @@ class EnterpriseUser(AbstractUser):
             models.Index(fields=['corporate_email']),
             models.Index(fields=['role']),
             models.Index(fields=['is_2fa_enabled']),
-            models.Index(fields=['email_verified']),
             models.Index(fields=['last_login']),
             models.Index(fields=['password_expires_at']),
         ]
@@ -250,6 +295,26 @@ class EnterpriseUser(AbstractUser):
         self.save(update_fields=['backup_codes'])
         return codes
     
+    def generate_email_verification_token(self) -> str:
+        """
+        Generate a new email verification token.
+        """
+        token = secrets.token_urlsafe(32)
+        self.email_verification_token = token
+        self.save(update_fields=['email_verification_token'])
+        return token
+    
+    def verify_email_with_token(self, token: str) -> bool:
+        """
+        Verify email with provided token.
+        """
+        if self.email_verification_token == token:
+            self.email_verified = True
+            self.email_verification_token = ''
+            self.save(update_fields=['email_verified', 'email_verification_token'])
+            return True
+        return False
+    
     def use_backup_code(self, code: str) -> bool:
         """
         Use a backup code and remove it from available codes.
@@ -325,30 +390,6 @@ class EnterpriseUser(AbstractUser):
         self.password_changed_at = timezone.now()
         self.save(update_fields=['password_expires_at', 'password_changed_at'])
     
-    def generate_email_verification_token(self) -> str:
-        """
-        Generate a token for email verification.
-        """
-        token = secrets.token_urlsafe(32)
-        self.email_verification_token = token
-        
-        if self.pk:
-            self.save(update_fields=['email_verification_token'])
-        else:
-            self.save()
-            
-        return token
-    
-    def verify_email_with_token(self, token: str) -> bool:
-        """
-        Verify email with provided token.
-        """
-        if self.email_verification_token == token:
-            self.email_verified = True
-            self.email_verification_token = ''
-            self.save(update_fields=['email_verified', 'email_verification_token'])
-            return True
-        return False
     
     def update_last_activity(self) -> None:
         """
@@ -375,7 +416,6 @@ class EnterpriseUser(AbstractUser):
             'department': self.department,
             'company_domain': self.company_domain,
             'is_2fa_enabled': self.is_2fa_enabled,
-            'email_verified': self.email_verified,
             'is_staff': self.is_staff,
             'is_superuser': self.is_superuser,
         }

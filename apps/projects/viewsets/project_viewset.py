@@ -110,6 +110,35 @@ class ProjectViewSet(EnterpriseTransactionMixin, viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'updated_at', 'name', 'last_activity_at']
     ordering = ['-updated_at']
     
+    def create(self, request, *args, **kwargs):
+        """Override create to ensure owner is set properly."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Save with owner set
+        project = serializer.save(owner=request.user)
+        
+        # Log creation
+        try:
+            from apps.audit.services import AuditService
+            AuditService.log_user_action(
+                user=request.user,
+                action='CREATE_PROJECT',
+                resource_type='PROJECT',
+                resource_id=project.id,
+                details={
+                    'project_name': project.name,
+                    'workspace': str(project.workspace.id),
+                    'status': project.status,
+                    'visibility': project.visibility
+                }
+            )
+        except Exception:
+            pass  # Don't fail creation if audit logging fails
+        
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
     def get_serializer_class(self):
         if self.action == 'create':
             return ProjectCreateSerializer
@@ -131,24 +160,24 @@ class ProjectViewSet(EnterpriseTransactionMixin, viewsets.ModelViewSet):
             return Project.objects.select_related(
                 'owner', 'workspace'
             ).prefetch_related(
-                'project_members', 'uml_diagrams'
+                'members', 'uml_diagrams'
             ).annotate(
-                member_count=Count('project_members', distinct=True),
-                diagram_count=Count('uml_diagrams', distinct=True)
+                member_count=Count('members', distinct=True),
+                diagram_count_annotation=Count('uml_diagrams', distinct=True)
             )
         
         # Users can see projects they own, are members of, or are public
         return Project.objects.select_related(
             'owner', 'workspace'
         ).prefetch_related(
-            'project_members', 'uml_diagrams'
+            'members', 'uml_diagrams'
         ).filter(
             Q(owner=user) |
-            Q(project_members__user=user, project_members__status='ACTIVE') |
+            Q(members__user=user, members__status='ACTIVE') |
             Q(visibility='PUBLIC')
         ).annotate(
-            member_count=Count('project_members', distinct=True),
-            diagram_count=Count('uml_diagrams', distinct=True)
+            member_count=Count('members', distinct=True),
+            diagram_count_annotation=Count('uml_diagrams', distinct=True)
         ).distinct()
     
     @transaction.atomic

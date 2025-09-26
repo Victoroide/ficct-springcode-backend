@@ -98,6 +98,7 @@ class GenerationRequestViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
     Enterprise ViewSet for SpringBoot Code Generation Request management with atomic transactions,
     comprehensive status tracking, soft delete support, and audit logging.
     """
+    queryset = GenerationRequest.objects.all()
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['status', 'diagram', 'requested_by']

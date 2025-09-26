@@ -30,6 +30,7 @@ from ..serializers import (
     LogoutSerializer,
     TokenRefreshSerializer,
     UserProfileSerializer,
+    PasswordChangeSerializer,
 )
 from ..services import AuthenticationService, AuditService
 from typing import Dict, Any

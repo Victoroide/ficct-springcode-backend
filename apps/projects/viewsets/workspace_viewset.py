@@ -115,6 +115,38 @@ class WorkspaceViewSet(EnterpriseTransactionMixin, viewsets.ModelViewSet):
     ordering_fields = ['created_at', 'updated_at', 'name']
     ordering = ['-updated_at']
     
+    # Override soft delete field configuration for Workspace model
+    soft_delete_field = 'status'
+    soft_delete_value = 'DELETED'
+    
+    def create(self, request, *args, **kwargs):
+        """Override create to ensure owner is set properly."""
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        # Save with owner set
+        workspace = serializer.save(owner=request.user)
+        
+        # Log creation
+        try:
+            from apps.audit.services import AuditService
+            AuditService.log_user_action(
+                user=request.user,
+                action='CREATE_WORKSPACE',
+                resource_type='WORKSPACE',
+                resource_id=workspace.id,
+                details={
+                    'workspace_name': workspace.name,
+                    'workspace_type': workspace.workspace_type,
+                    'status': workspace.status
+                }
+            )
+        except Exception:
+            pass  # Don't fail creation if audit logging fails
+        
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
+    
     def get_serializer_class(self):
         """Return appropriate serializer class based on action."""
         if self.action == 'create':
@@ -142,16 +174,13 @@ class WorkspaceViewSet(EnterpriseTransactionMixin, viewsets.ModelViewSet):
         )
         
         if user.is_staff:
-            return base_queryset.filter(
-                Q(is_deleted=False) | Q(is_deleted__isnull=True)
-            )
+            return base_queryset.exclude(status='DELETED')
         
         # Users can see workspaces they own or are members of through projects
         return base_queryset.filter(
             Q(owner=user) |
-            Q(projects__project_members__user=user, projects__project_members__status='ACTIVE'),
-            Q(is_deleted=False) | Q(is_deleted__isnull=True)
-        ).distinct()
+            Q(projects__project_members__user=user, projects__project_members__status='ACTIVE')
+        ).exclude(status='DELETED').distinct()
     
     @transaction.atomic
     def perform_create(self, serializer):
@@ -201,9 +230,12 @@ class WorkspaceViewSet(EnterpriseTransactionMixin, viewsets.ModelViewSet):
                 instance.soft_delete()
             else:
                 # Fallback soft delete
-                instance.is_deleted = True
-                instance.deleted_at = timezone.now()
-                instance.save(update_fields=['is_deleted', 'deleted_at'])
+                instance.status = 'DELETED'
+                if hasattr(instance, 'deleted_at'):
+                    instance.deleted_at = timezone.now()
+                    instance.save(update_fields=['status', 'deleted_at'])
+                else:
+                    instance.save(update_fields=['status'])
             
             # Audit logging
             AuditService.log_user_action(
@@ -366,9 +398,8 @@ class WorkspaceViewSet(EnterpriseTransactionMixin, viewsets.ModelViewSet):
             }
             
             if include_projects:
-                projects = workspace.projects.filter(
-                    created_at__gte=start_date,
-                    is_deleted=False
+                projects = workspace.projects.exclude(status='DELETED').filter(
+                    created_at__gte=start_date
                 )
                 
                 usage_data["project_breakdown"] = [
@@ -427,7 +458,7 @@ class WorkspaceViewSet(EnterpriseTransactionMixin, viewsets.ModelViewSet):
                 status=status.HTTP_403_FORBIDDEN
             )
         
-        projects_queryset = workspace.projects.filter(is_deleted=False)
+        projects_queryset = workspace.projects.exclude(status='DELETED')
         
         # Apply filters
         status_filter = request.query_params.get('status')

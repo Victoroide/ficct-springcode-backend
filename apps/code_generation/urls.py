@@ -17,7 +17,7 @@ app_name = 'code_generation'
 router = DefaultRouter()
 router.register(r'requests', GenerationRequestViewSet, basename='generation-request')
 router.register(r'templates', GenerationTemplateViewSet, basename='generation-template')
-router.register(r'projects', GeneratedProjectViewSet, basename='generated-project')
+router.register(r'generated-projects', GeneratedProjectViewSet, basename='generated-project')
 router.register(r'history', GenerationHistoryViewSet, basename='generation-history')
 
 urlpatterns = [

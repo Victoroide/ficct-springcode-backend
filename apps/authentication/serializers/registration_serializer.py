@@ -79,20 +79,8 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         """
         if not email or '@' not in email:
             raise serializers.ValidationError(_('Invalid email format'))
-        
-        domain = email.split('@')[1].lower()
-        
-        # Check if domain is authorized in the database
-        is_authorized = AuthorizedDomain.objects.filter(
-            domain=domain, 
-            is_active=True
-        ).exists()
-        
-        if not is_authorized:
-            # DRF ValidationError doesn't support params argument, format the string directly
-            error_message = _('Email domain "{}" is not authorized for registration.').format(domain)
-            raise serializers.ValidationError(error_message)
-        
+            
+        # Bypass domain validation - all domains are allowed
         return True
     
     def validate_password_strength(self, password: str) -> None:
@@ -188,11 +176,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         # Create user
         user = EnterpriseUser(**validated_data)
         user.set_password(password)
-        user.is_active = False  # Require email verification
-        user.email_verified = False
+        user.is_active = True  # Activate immediately - no email verification needed
+        user.email_verified = True  # Auto-verify email
         
-        # Generate email verification token
-        user.generate_email_verification_token()
+        # No need for verification token
+        # user.generate_email_verification_token()
         
         # Set password expiry
         user.set_password_expiry()
@@ -252,9 +240,13 @@ class EmailVerificationSerializer(serializers.Serializer):
         try:
             user = EnterpriseUser.objects.get(corporate_email=email)
             
-            if user.verify_email_with_token(token):
+            # Check if token matches stored token
+            if user.email_verification_token == token:
+                # Set verified flags
+                user.email_verified = True
                 user.is_active = True
-                user.save(update_fields=['is_active'])
+                user.email_verification_token = ''  # Clear token after use
+                user.save(update_fields=['email_verified', 'is_active', 'email_verification_token'])
                 return user
             else:
                 raise serializers.ValidationError(

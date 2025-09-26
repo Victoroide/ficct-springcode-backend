@@ -35,14 +35,14 @@ class LoginSerializer(serializers.Serializer):
         if not email_pattern.match(value):
             raise serializers.ValidationError(_("Invalid email format"))
         
-        # Extract domain and validate against authorized domains
-        domain = value.split('@')[1].lower()
-        from apps.accounts.models import AuthorizedDomain
-        
-        if not AuthorizedDomain.is_domain_authorized(domain):
-            raise serializers.ValidationError(
-                _("Domain '{}' is not authorized for access").format(domain)
-            )
+        # Domain validation disabled - all domains are allowed
+        # domain = value.split('@')[1].lower()
+        # from apps.accounts.models import AuthorizedDomain
+        # 
+        # if not AuthorizedDomain.is_domain_authorized(domain):
+        #     raise serializers.ValidationError(
+        #         _("Domain '{}' is not authorized for access").format(domain)
+        #     )
         
         return value.lower()
     

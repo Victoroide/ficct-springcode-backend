@@ -115,6 +115,11 @@ class CollaborationParticipant(models.Model):
         VIEWER = 'VIEWER', 'Viewer'
         COMMENTER = 'COMMENTER', 'Commenter'
     
+    class ParticipantStatus(models.TextChoices):
+        ACTIVE = 'ACTIVE', 'Active'
+        INACTIVE = 'INACTIVE', 'Inactive'
+        DELETED = 'DELETED', 'Deleted'
+    
     session = models.ForeignKey(
         CollaborationSession,
         on_delete=models.CASCADE,
@@ -129,6 +134,11 @@ class CollaborationParticipant(models.Model):
         max_length=15,
         choices=ParticipantRole.choices,
         default=ParticipantRole.EDITOR
+    )
+    status = models.CharField(
+        max_length=15,
+        choices=ParticipantStatus.choices,
+        default=ParticipantStatus.ACTIVE
     )
     joined_at = models.DateTimeField(auto_now_add=True)
     left_at = models.DateTimeField(null=True, blank=True)
@@ -158,5 +168,12 @@ class CollaborationParticipant(models.Model):
     def leave_session(self) -> None:
         """Mark participant as left."""
         self.is_active = False
+        self.status = self.ParticipantStatus.INACTIVE
         self.left_at = timezone.now()
-        self.save()
+        self.save(update_fields=['is_active', 'status', 'left_at'])
+    
+    def update_cursor_position(self, cursor_data: dict) -> None:
+        """Update cursor position data."""
+        self.cursor_position = cursor_data
+        self.last_activity = timezone.now()
+        self.save(update_fields=['cursor_position', 'last_activity'])

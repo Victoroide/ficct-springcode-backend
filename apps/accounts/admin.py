@@ -16,12 +16,12 @@ class EnterpriseUserAdmin(UserAdmin):
     
     list_display = (
         'corporate_email', 'full_name', 'role', 'department', 
-        'company_domain', 'is_active', 'email_verified', 
+        'company_domain', 'is_active', 
         'is_2fa_enabled', 'last_login', 'security_status'
     )
     
     list_filter = (
-        'is_active', 'email_verified', 'is_2fa_enabled', 'role',
+        'is_active', 'is_2fa_enabled', 'role',
         'company_domain', 'department', 'is_staff', 'is_superuser',
         'created_at', 'last_login'
     )
@@ -45,7 +45,7 @@ class EnterpriseUserAdmin(UserAdmin):
                       'company_domain', 'employee_id')
         }),
         ('Account Status', {
-            'fields': ('is_active', 'email_verified', 'is_staff', 'is_superuser')
+            'fields': ('is_active', 'is_staff', 'is_superuser')
         }),
         ('Security Settings', {
             'fields': ('is_2fa_enabled', 'failed_login_attempts', 
@@ -79,8 +79,6 @@ class EnterpriseUserAdmin(UserAdmin):
         if obj.is_account_locked():
             status_items.append('<span style="color: red;">🔒 Locked</span>')
         
-        if not obj.email_verified:
-            status_items.append('<span style="color: orange;">📧 Unverified</span>')
         
         if obj.is_2fa_enabled:
             status_items.append('<span style="color: green;">🔐 2FA</span>')
@@ -230,7 +228,7 @@ class AuthorizedDomainAdmin(admin.ModelAdmin):
             company_domain=obj.domain, is_active=True
         ).count()
         verified_users = EnterpriseUser.objects.filter(
-            company_domain=obj.domain, email_verified=True
+            company_domain=obj.domain, is_active=True
         ).count()
         
         return format_html(

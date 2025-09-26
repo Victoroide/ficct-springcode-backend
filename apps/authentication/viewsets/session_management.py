@@ -53,6 +53,7 @@ class SessionManagementViewSet(ModelViewSet):
     """
     ViewSet for managing user sessions with enterprise security features.
     """
+    queryset = Session.objects.all()
     permission_classes = [IsAuthenticated, IsOwnerOrAdmin]
     throttle_classes = [UserRateThrottle]
     http_method_names = ['get', 'delete', 'post']  # No PUT/PATCH for sessions
