@@ -13,9 +13,8 @@ from rest_framework.test import APITestCase, APIClient
 from rest_framework import status
 
 from base.test_base import BaseTestCase
-from base.test_factories import EnterpriseUserFactory, AdminUserFactory, ProjectFactory, WorkspaceFactory
+from base.test_factories import EnterpriseUserFactory, AdminUserFactory
 from apps.uml_diagrams.models import UMLDiagram, UMLElement, UMLRelationship
-from apps.projects.models import Project
 
 User = get_user_model()
 

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UML Diagram WebSocket Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.connected { background-color: #d4edda; color: #155724; }
+        .status.disconnected { background-color: #f8d7da; color: #721c24; }
+        .status.connecting { background-color: #fff3cd; color: #856404; }
+        .messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #fafafa;
+        }
+        .message {
+            margin: 5px 0;
+            padding: 5px;
+            border-left: 3px solid #007bff;
+            background-color: white;
+        }
+        .message.sent { border-left-color: #28a745; }
+        .message.received { border-left-color: #17a2b8; }
+        .message.system { border-left-color: #ffc107; }
+        input, button {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover { background-color: #0056b3; }
+        button:disabled {
+            background-color: #6c757d;
+            cursor: not-allowed;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔌 UML Diagram WebSocket Test</h1>
+        
+        <div class="status" id="status">Disconnected</div>
+        
+        <div>
+            <label>WebSocket URL:</label>
+            <input type="text" id="wsUrl" value="ws://localhost/ws/diagram/test-diagram-id/" style="width: 400px;">
+            <button onclick="connect()" id="connectBtn">Connect</button>
+            <button onclick="disconnect()" id="disconnectBtn" disabled>Disconnect</button>
+        </div>
+
+        <div class="grid">
+            <div>
+                <h3>📊 Diagram Collaboration Test</h3>
+                <div>
+                    <input type="text" id="diagramUpdate" placeholder="Diagram update JSON" style="width: 100%;">
+                    <button onclick="sendDiagramUpdate()" id="diagramBtn" disabled>Send Update</button>
+                </div>
+                
+                <div>
+                    <input type="text" id="cursorX" placeholder="Cursor X" style="width: 80px;">
+                    <input type="text" id="cursorY" placeholder="Cursor Y" style="width: 80px;">
+                    <button onclick="sendCursorPosition()" id="cursorBtn" disabled>Send Cursor</button>
+                </div>
+            </div>
+
+            <div>
+                <h3>💬 Chat Test</h3>
+                <div>
+                    <label>Chat WebSocket URL:</label>
+                    <input type="text" id="chatWsUrl" value="ws://localhost/ws/diagram/test-diagram-id/chat/" style="width: 100%;">
+                    <button onclick="connectChat()" id="chatConnectBtn">Connect Chat</button>
+                </div>
+                
+                <div>
+                    <input type="text" id="chatMessage" placeholder="Chat message" style="width: 200px;">
+                    <button onclick="sendChatMessage()" id="chatBtn" disabled>Send Message</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="messages" id="messages"></div>
+
+        <div style="margin-top: 20px;">
+            <h3>📋 Test Results</h3>
+            <div id="testResults">
+                <div>Diagram WebSocket: <span id="diagramResult">Not tested</span></div>
+                <div>Chat WebSocket: <span id="chatResult">Not tested</span></div>
+                <div>Message Broadcasting: <span id="broadcastResult">Not tested</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let chatWs = null;
+        let messageCount = 0;
+
+        function updateStatus(message, className) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = `status ${className}`;
+        }
+
+        function addMessage(message, type = 'system') {
+            const messages = document.getElementById('messages');
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.innerHTML = `<strong>${new Date().toLocaleTimeString()}</strong> - ${message}`;
+            messages.appendChild(div);
+            messages.scrollTop = messages.scrollHeight;
+        }
+
+        function connect() {
+            const url = document.getElementById('wsUrl').value;
+            updateStatus('Connecting...', 'connecting');
+            
+            ws = new WebSocket(url);
+            
+            ws.onopen = function(event) {
+                updateStatus('Connected to Diagram WebSocket', 'connected');
+                addMessage('✅ Connected to diagram WebSocket', 'system');
+                document.getElementById('connectBtn').disabled = true;
+                document.getElementById('disconnectBtn').disabled = false;
+                document.getElementById('diagramBtn').disabled = false;
+                document.getElementById('cursorBtn').disabled = false;
+                document.getElementById('diagramResult').textContent = 'Connected ✅';
+            };
+
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                addMessage(`📥 Received: ${JSON.stringify(data, null, 2)}`, 'received');
+                messageCount++;
+            };
+
+            ws.onclose = function(event) {
+                updateStatus('Disconnected', 'disconnected');
+                addMessage('❌ Diagram WebSocket disconnected', 'system');
+                document.getElementById('connectBtn').disabled = false;
+                document.getElementById('disconnectBtn').disabled = true;
+                document.getElementById('diagramBtn').disabled = true;
+                document.getElementById('cursorBtn').disabled = true;
+            };
+
+            ws.onerror = function(error) {
+                addMessage(`❌ WebSocket error: ${error}`, 'system');
+                document.getElementById('diagramResult').textContent = 'Error ❌';
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            }
+        }
+
+        function sendDiagramUpdate() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const update = document.getElementById('diagramUpdate').value || '{"classes": [], "relationships": []}';
+                const message = {
+                    type: 'diagram_update',
+                    update_data: {
+                        diagram_data: JSON.parse(update)
+                    }
+                };
+                ws.send(JSON.stringify(message));
+                addMessage(`📤 Sent diagram update`, 'sent');
+            }
+        }
+
+        function sendCursorPosition() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const x = document.getElementById('cursorX').value || '100';
+                const y = document.getElementById('cursorY').value || '100';
+                const message = {
+                    type: 'cursor_position',
+                    position: { x: parseInt(x), y: parseInt(y) }
+                };
+                ws.send(JSON.stringify(message));
+                addMessage(`📤 Sent cursor position: (${x}, ${y})`, 'sent');
+            }
+        }
+
+        function connectChat() {
+            const url = document.getElementById('chatWsUrl').value;
+            
+            chatWs = new WebSocket(url);
+            
+            chatWs.onopen = function(event) {
+                addMessage('✅ Connected to chat WebSocket', 'system');
+                document.getElementById('chatBtn').disabled = false;
+                document.getElementById('chatResult').textContent = 'Connected ✅';
+            };
+
+            chatWs.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                addMessage(`💬 Chat: ${JSON.stringify(data, null, 2)}`, 'received');
+                
+                if (data.type === 'chat_message') {
+                    document.getElementById('broadcastResult').textContent = 'Working ✅';
+                }
+            };
+
+            chatWs.onclose = function(event) {
+                addMessage('❌ Chat WebSocket disconnected', 'system');
+                document.getElementById('chatBtn').disabled = true;
+            };
+
+            chatWs.onerror = function(error) {
+                addMessage(`❌ Chat WebSocket error: ${error}`, 'system');
+                document.getElementById('chatResult').textContent = 'Error ❌';
+            };
+        }
+
+        function sendChatMessage() {
+            if (chatWs && chatWs.readyState === WebSocket.OPEN) {
+                const message = document.getElementById('chatMessage').value || 'Hello from WebSocket test!';
+                const chatMessage = {
+                    type: 'chat_message',
+                    message: message
+                };
+                chatWs.send(JSON.stringify(chatMessage));
+                addMessage(`💬 Sent chat: "${message}"`, 'sent');
+                document.getElementById('chatMessage').value = '';
+            }
+        }
+
+        // Auto-populate test data
+        document.getElementById('diagramUpdate').value = '{"classes": [{"id": "test-class", "name": "TestClass"}], "relationships": []}';
+        document.getElementById('cursorX').value = '150';
+        document.getElementById('cursorY').value = '200';
+        document.getElementById('chatMessage').value = 'Test message from browser';
+    </script>
+</body>
+</html>

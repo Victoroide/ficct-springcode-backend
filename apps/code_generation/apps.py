@@ -1,20 +1,12 @@
 """
-Code Generation app configuration for SpringBoot code generation engine.
+This module contains SpringBoot code generation services
+It is no longer a Django app but a utility module
 """
 
-from django.apps import AppConfig
-
-
-class CodeGenerationConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.code_generation'
-    verbose_name = 'SpringBoot Code Generation'
-    
-    def ready(self):
-        """
-        Initialize code generation templates and services.
-        """
-        try:
-            from . import signals  # noqa
-        except ImportError:
-            pass
+def initialize_services():
+    """
+    Initialize code generation services.
+    """
+    # Initialize template cache
+    from .services.template_rendering_service import TemplateRenderingService
+    TemplateRenderingService.initialize_template_cache()

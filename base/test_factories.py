@@ -63,119 +63,7 @@ class TOTPDeviceFactory(DjangoModelFactory):
     confirmed = True
 
 
-# Collaboration App Factories
-class CollaborationSessionFactory(DjangoModelFactory):
-    """Factory for collaboration sessions."""
-    
-    class Meta:
-        model = 'collaboration.CollaborationSession'
-    
-    project = factory.SubFactory('base.test_factories.ProjectFactory')
-    diagram = factory.SubFactory('base.test_factories.UMLDiagramFactory')
-    host_user = factory.SubFactory(EnterpriseUserFactory)
-    status = 'ACTIVE'
-    session_data = factory.LazyFunction(lambda: {'settings': {'auto_save': True}})
-    created_at = factory.LazyFunction(timezone.now)
-    updated_at = factory.LazyFunction(timezone.now)
-    ended_at = None
-    is_active = True
-
-
-class SessionParticipantFactory(DjangoModelFactory):
-    """Factory for session participants."""
-    
-    class Meta:
-        model = 'collaboration.CollaborationParticipant'
-    
-    session = factory.SubFactory(CollaborationSessionFactory)
-    user = factory.SubFactory(EnterpriseUserFactory)
-    role = fuzzy.FuzzyChoice(['HOST', 'EDITOR', 'VIEWER', 'COMMENTER'])
-    joined_at = factory.LazyFunction(timezone.now)
-    is_active = True
-
-
-class UMLChangeEventFactory(DjangoModelFactory):
-    """Factory for UML change events."""
-    
-    class Meta:
-        model = 'collaboration.ChangeEvent'
-    
-    session = factory.SubFactory(CollaborationSessionFactory)
-    diagram = factory.SubFactory('base.test_factories.UMLDiagramFactory')
-    user = factory.SubFactory(EnterpriseUserFactory)
-    event_type = fuzzy.FuzzyChoice([
-        'ELEMENT_CREATED', 'ELEMENT_UPDATED', 'ELEMENT_DELETED', 'ELEMENT_MOVED',
-        'RELATIONSHIP_CREATED', 'RELATIONSHIP_UPDATED', 'RELATIONSHIP_DELETED',
-        'ATTRIBUTE_ADDED', 'ATTRIBUTE_UPDATED', 'ATTRIBUTE_REMOVED',
-        'METHOD_ADDED', 'METHOD_UPDATED', 'METHOD_REMOVED', 'DIAGRAM_SAVED'
-    ])
-    element_type = fuzzy.FuzzyChoice(['class', 'interface', 'enum', 'relationship', 'attribute', 'method'])
-    element_id = factory.LazyFunction(lambda: str(uuid.uuid4()))
-    change_data = factory.LazyFunction(lambda: {'field': 'value'})
-    previous_data = factory.LazyFunction(lambda: {})
-    timestamp = factory.LazyFunction(timezone.now)
-    is_broadcasted = False
-    broadcast_count = 0
-    sequence_number = factory.Sequence(lambda n: n + 1)
-    conflict_resolved = False
-
-
-# Projects App Factories
-class WorkspaceFactory(DjangoModelFactory):
-    """Factory for workspaces."""
-    
-    class Meta:
-        model = 'projects.Workspace'
-    
-    name = factory.Faker('company')
-    slug = factory.Sequence(lambda n: f'workspace-{n}')
-    description = factory.Faker('text', max_nb_chars=200)
-    owner = factory.SubFactory(EnterpriseUserFactory)
-    status = 'ACTIVE'
-    workspace_type = 'PERSONAL'
-
-
-class ProjectFactory(DjangoModelFactory):
-    """Factory for projects."""
-    
-    class Meta:
-        model = 'projects.Project'
-    
-    name = factory.Faker('catch_phrase')
-    description = factory.Faker('text', max_nb_chars=500)
-    workspace = factory.SubFactory(WorkspaceFactory)
-    owner = factory.SubFactory(EnterpriseUserFactory)
-    status = fuzzy.FuzzyChoice(['ACTIVE', 'ARCHIVED', 'SUSPENDED'])
-    visibility = fuzzy.FuzzyChoice(['PRIVATE', 'TEAM', 'ORGANIZATION'])
-    created_at = factory.LazyFunction(timezone.now)
-
-
-class ProjectMemberFactory(DjangoModelFactory):
-    """Factory for project members."""
-    
-    class Meta:
-        model = 'projects.ProjectMember'
-    
-    project = factory.SubFactory(ProjectFactory)
-    user = factory.SubFactory(EnterpriseUserFactory)
-    role = fuzzy.FuzzyChoice(['owner', 'admin', 'developer', 'viewer'])
-    permissions = factory.LazyFunction(lambda: ['read', 'write'])
-    joined_at = factory.LazyFunction(timezone.now)
-
-
-class ProjectTemplateFactory(DjangoModelFactory):
-    """Factory for project templates."""
-    
-    class Meta:
-        model = 'projects.ProjectTemplate'
-    
-    name = factory.Faker('word')
-    description = factory.Faker('text', max_nb_chars=300)
-    template_type = fuzzy.FuzzyChoice(['springboot', 'microservice'])
-    configuration = factory.LazyFunction(lambda: {'java_version': '11', 'spring_version': '2.7.0'})
-    created_by = factory.SubFactory(EnterpriseUserFactory)
-    is_public = True
-    created_at = factory.LazyFunction(timezone.now)
+# UML Diagrams App Factories (Refactored - no project dependency)
 
 
 # UML Diagrams App Factories
@@ -185,7 +73,7 @@ class UMLDiagramFactory(DjangoModelFactory):
     class Meta:
         model = 'uml_diagrams.UMLDiagram'
     
-    project = factory.SubFactory(ProjectFactory)
+    owner = factory.SubFactory(EnterpriseUserFactory)
     name = factory.Faker('word')
     description = factory.Faker('text', max_nb_chars=200)
     diagram_type = fuzzy.FuzzyChoice(['CLASS', 'SEQUENCE', 'USE_CASE', 'ACTIVITY', 'STATE', 'COMPONENT', 'DEPLOYMENT'])
@@ -256,73 +144,6 @@ class UMLRelationshipFactory(DjangoModelFactory):
     updated_at = factory.LazyFunction(timezone.now)
 
 
-# Code Generation App Factories
-class GenerationRequestFactory(DjangoModelFactory):
-    """Factory for generation requests."""
-    
-    class Meta:
-        model = 'code_generation.GenerationRequest'
-    
-    project = factory.SubFactory(ProjectFactory)
-    uml_diagram = factory.SubFactory(UMLDiagramFactory)
-    requested_by = factory.SubFactory(EnterpriseUserFactory)
-    generation_type = fuzzy.FuzzyChoice(['full_project', 'entities_only', 'controllers_only'])
-    status = fuzzy.FuzzyChoice(['pending', 'processing', 'completed', 'failed'])
-    configuration = factory.LazyFunction(lambda: {
-        'java_version': '11',
-        'spring_version': '2.7.0',
-        'database': 'postgresql'
-    })
-    created_at = factory.LazyFunction(timezone.now)
-
-
-class GenerationTemplateFactory(DjangoModelFactory):
-    """Factory for generation templates."""
-    
-    class Meta:
-        model = 'code_generation.GenerationTemplate'
-    
-    name = factory.Faker('word')
-    description = factory.Faker('text', max_nb_chars=200)
-    template_type = fuzzy.FuzzyChoice(['entity', 'repository', 'service', 'controller'])
-    language = 'java'
-    framework = 'springboot'
-    template_content = factory.LazyFunction(lambda: '// Template content')
-    created_by = factory.SubFactory(EnterpriseUserFactory)
-    is_active = True
-    created_at = factory.LazyFunction(timezone.now)
-
-
-class GeneratedProjectFactory(DjangoModelFactory):
-    """Factory for generated projects."""
-    
-    class Meta:
-        model = 'code_generation.GeneratedProject'
-    
-    generation_request = factory.SubFactory(GenerationRequestFactory)
-    project_name = factory.Faker('word')
-    generated_files = factory.LazyFunction(lambda: {
-        'entities': ['User.java', 'Product.java'],
-        'repositories': ['UserRepository.java', 'ProductRepository.java']
-    })
-    download_url = factory.LazyFunction(lambda: f'/downloads/{uuid.uuid4()}.zip')
-    file_size = factory.Faker('random_int', min=1024, max=10485760)  # 1KB to 10MB
-    created_at = factory.LazyFunction(timezone.now)
-    expires_at = factory.LazyFunction(lambda: timezone.now() + timedelta(days=7))
-
-
-class GenerationHistoryFactory(DjangoModelFactory):
-    """Factory for generation history."""
-    
-    class Meta:
-        model = 'code_generation.GenerationHistory'
-    
-    user = factory.SubFactory(EnterpriseUserFactory)
-    project = factory.SubFactory(ProjectFactory)
-    generation_request = factory.SubFactory(GenerationRequestFactory)
-    action = fuzzy.FuzzyChoice(['created', 'downloaded', 'deleted'])
-    details = factory.LazyFunction(lambda: {'files_count': 10})
-    timestamp = factory.LazyFunction(timezone.now)
 
 
 # Audit App Factories

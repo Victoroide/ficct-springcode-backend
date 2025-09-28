@@ -11,7 +11,6 @@ from datetime import timedelta
 import json
 
 from ..models import UMLDiagram, UMLElement, UMLRelationship
-from apps.projects.models import Project, Workspace
 
 User = get_user_model()
 

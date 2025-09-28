@@ -38,13 +38,25 @@ class EnterpriseTransactionMixin:
     def log_transaction_event(self, action, instance=None, details=None):
         """Log transaction events for audit purposes."""
         try:
-            audit_service = AuditService()
-            audit_service.log_user_action(
+            # Extraer información del modelo si se proporciona una instancia
+            resource_type = None
+            resource_id = None
+            
+            if instance:
+                resource_type = instance.__class__.__name__
+                resource_id = getattr(instance, 'id', None) or getattr(instance, 'pk', None)
+            
+            # Preparar detalles
+            audit_details = details or {}
+            
+            # Registrar la acción
+            AuditService.log_user_action(
                 user=self.request.user,
                 action=action,
+                resource_type=resource_type,
+                resource_id=resource_id,
                 ip_address=self.get_client_ip(self.request),
-                details=details or {},
-                resource=instance
+                details=audit_details
             )
         except Exception as e:
             logger.warning(f"Failed to log transaction event: {str(e)}")

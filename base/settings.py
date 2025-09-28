@@ -31,29 +31,15 @@ DJANGO_APPS = [
 
 THIRD_PARTY_APPS = [
     'rest_framework',
-    'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',
     'drf_spectacular',
     'corsheaders',
     'channels',
-    'django_otp',
-    'django_otp.plugins.otp_totp',
-    'django_otp.plugins.otp_static',
-    'axes',
-    'django_celery_beat',
-    'django_celery_results',
 ]
 
 LOCAL_APPS = [
-    'apps.accounts',
-    'apps.authentication',
-    'apps.audit',
-    'apps.security',
-    'apps.collaboration',
     'apps.uml_diagrams',
+    'apps.websockets',
     'apps.code_generation',
-    'apps.projects',
-    'apps.templates',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -66,10 +52,6 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django_otp.middleware.OTPMiddleware',
-    'axes.middleware.AxesMiddleware',
-    'apps.security.middleware.EnterpriseSecurityMiddleware',
-    'apps.security.middleware.IPWhitelistMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -161,116 +143,25 @@ SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 
-# Custom User Model
-AUTH_USER_MODEL = 'accounts.EnterpriseUser'
+# No custom user model needed for anonymous app
 
-# Django REST Framework Configuration
+# Django REST Framework Configuration - Anonymous/Simple
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-    'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
-    ),
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',
-    ],
-    'DEFAULT_RENDERER_CLASSES': [
-        'rest_framework.renderers.JSONRenderer',
-    ],
-    'DEFAULT_PARSER_CLASSES': [
-        'rest_framework.parsers.JSONParser',
+        'rest_framework.permissions.AllowAny',
     ],
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
-        'rest_framework.throttling.UserRateThrottle'
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '100/hour',
-        'user': '1000/hour'
+        'anon': '200/hour',  # Increased for anonymous usage
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
-    'DEFAULT_VERSIONING_CLASS': 'rest_framework.versioning.AcceptHeaderVersioning',
-    'DEFAULT_VERSION': 'v1',
-    'ALLOWED_VERSIONS': ['v1'],
-    'VERSION_PARAM': 'version'
 }
 
-# JWT Configuration
-SIMPLE_JWT = {
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=15),
-    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
-    'ROTATE_REFRESH_TOKENS': True,
-    'BLACKLIST_AFTER_ROTATION': True,
-    'UPDATE_LAST_LOGIN': True,
-    
-    'ALGORITHM': 'HS256',
-    'SIGNING_KEY': SECRET_KEY,
-    'VERIFYING_KEY': None,
-    'AUDIENCE': None,
-    'ISSUER': None,
-    'JWK_URL': None,
-    'LEEWAY': 0,
-    
-    'AUTH_HEADER_TYPES': ('Bearer',),
-    'AUTH_HEADER_NAME': 'HTTP_AUTHORIZATION',
-    'USER_ID_FIELD': 'id',
-    'USER_ID_CLAIM': 'user_id',
-    'USER_AUTHENTICATION_RULE': 'rest_framework_simplejwt.authentication.default_user_authentication_rule',
-    
-    'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-    'TOKEN_TYPE_CLAIM': 'token_type',
-    'TOKEN_USER_CLASS': 'rest_framework_simplejwt.models.TokenUser',
-    
-    'JTI_CLAIM': 'jti',
-    
-    'SLIDING_TOKEN_REFRESH_EXP_CLAIM': 'refresh_exp',
-    'SLIDING_TOKEN_LIFETIME': timedelta(minutes=5),
-    'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=1),
-}
-
-# Enterprise Password Validation
-AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-        'OPTIONS': {
-            'min_length': 8,
-        }
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
-    # {
-    #     'NAME': 'apps.security.validators.EnterprisePasswordValidator',
-    # },
-]
-
-# 2FA Configuration
-OTP_TOTP_ISSUER = env('OTP_ISSUER_NAME', default='FICCT Enterprise')
-OTP_LOGIN_URL = '/auth/2fa/verify/'
-
-# Authentication Backends
-AUTHENTICATION_BACKENDS = [
-    'axes.backends.AxesBackend',
-    'django.contrib.auth.backends.ModelBackend',
-]
-
-# Django Axes (Login Protection)
-AXES_FAILURE_LIMIT = 5
-AXES_COOLOFF_TIME = timedelta(minutes=15)
-AXES_RESET_ON_SUCCESS = True
-AXES_LOCKOUT_TEMPLATE = 'registration/locked.html'
-AXES_LOCKOUT_URL = '/auth/locked/'
-AXES_IP_META_PRECEDENCE_ORDER = [
-    'HTTP_X_FORWARDED_FOR',
-    'HTTP_X_REAL_IP',
-    'REMOTE_ADDR',
-]
+# No authentication needed for anonymous app
 
 # Celery Configuration
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default=REDIS_URL)
@@ -316,6 +207,28 @@ CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
 ])
 
 CORS_ALLOW_CREDENTIALS = True
+
+# CORS Headers Configuration
+CORS_ALLOW_ALL_ORIGINS = False  # Security: only allow specific origins
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'x-nickname',        # Custom header for anonymous nicknames
+    'x-session-id',      # Custom header for session tracking
+]
+
+# Configuración adicional para WebSockets
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^http://localhost:[0-9]+$",
+    r"^http://127.0.0.1:[0-9]+$",
+]
 
 # Internationalization
 LANGUAGE_CODE = 'en-us'
@@ -419,30 +332,35 @@ RATELIMIT_USE_CACHE = 'default'
 
 # DRF Spectacular Configuration
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'FICCT Enterprise SpringBoot Code Generation API',
-    'DESCRIPTION': 'Enterprise-grade Django REST API for SpringBoot code generation platform with comprehensive authentication, audit logging, and security features.',
+    'TITLE': 'Anonymous UML Diagram Collaborative API',
+    'DESCRIPTION': 'Zero-friction UML diagramming platform with anonymous real-time collaboration, instant access, and no registration.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
-    'SCHEMA_PATH_PREFIX': '/api/v1/',
+    'SCHEMA_PATH_PREFIX': '/api/',
     'COMPONENT_SPLIT_REQUEST': True,
     'COMPONENT_NO_READ_ONLY_REQUIRED': False,
     'POSTPROCESSING_HOOKS': [],
     'SWAGGER_UI_SETTINGS': {
         'deepLinking': True,
-        'persistAuthorization': True,
+        'persistAuthorization': False,  # No auth needed
         'displayOperationId': True,
         'displayRequestDuration': True,
         'filter': True,
         'syntaxHighlight.theme': 'monokai',
         'tryItOutEnabled': True,
         'supportedSubmitMethods': ['get', 'post', 'put', 'patch', 'delete'],
+        'docExpansion': 'list',
+        'operationsSorter': 'alpha',
+        'tagsSorter': 'alpha',
+        'defaultModelsExpandDepth': 2,
+        'defaultModelExpandDepth': 2,
     },
     'REDOC_UI_SETTINGS': {
         'hideDownloadButton': False,
         'theme': {
             'colors': {
                 'primary': {
-                    'main': '#2563eb'
+                    'main': '#667eea'  # Updated to match anonymous UI
                 }
             },
             'typography': {
@@ -453,35 +371,51 @@ SPECTACULAR_SETTINGS = {
     },
     'TAGS': [
         {
-            'name': 'Authentication',
-            'description': 'User authentication, registration, 2FA, JWT token management'
+            'name': 'System',
+            'description': 'System health checks and API information'
         },
         {
-            'name': 'Organizations', 
-            'description': 'Enterprise organization management and member administration'
+            'name': 'UML Diagrams',
+            'description': 'Anonymous UML diagram creation, editing, and export functionality'
         },
         {
-            'name': 'Workspaces',
-            'description': 'Team collaboration and workspace management features'
-        },
-        {
-            'name': 'Projects',
-            'description': 'SpringBoot project lifecycle and configuration management'
-        },
-        {
-            'name': 'Logging',
-            'description': 'Audit trails, security monitoring, and error tracking'
+            'name': 'WebSocket Collaboration',
+            'description': 'Real-time anonymous collaboration, chat with guest nicknames'
         }
     ],
     'EXTERNAL_DOCS': {
-        'description': 'Enterprise Documentation Portal',
-        'url': 'https://docs.ficct-enterprise.com'
+        'description': 'Project Documentation',
+        'url': 'https://github.com/Victoroide/ficct-springcode-backend'
     },
     'CONTACT': {
-        'name': 'FICCT Enterprise Support',
-        'email': 'support@ficct-enterprise.com'
+        'name': 'UML Tool Support',
+        'email': 'contact@example.com'
     },
     'LICENSE': {
-        'name': 'Enterprise License',
+        'name': 'MIT License',
     }
+}
+
+# Django Channels Configuration for WebSocket support
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [env('CHANNEL_LAYERS_REDIS_URL', default='redis://localhost:6379/3')],
+            "capacity": 1500,  # Maximum messages in a channel
+            "expiry": 60,      # Messages expire after 60 seconds
+            "group_expiry": 86400,  # Groups expire after 24 hours
+            "symmetric_encryption_keys": [SECRET_KEY],
+        },
+    },
+}
+
+# WebSocket Configuration
+ASGI_APPLICATION = 'base.asgi.application'
+
+# Rate limiting for public endpoints
+THROTTLE_RATES = {
+    'public_diagram': '30/min',
+    'anon': '100/hour',
+    'user': '1000/hour'
 }

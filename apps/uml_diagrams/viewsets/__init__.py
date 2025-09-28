@@ -1,3 +1,1 @@
-from .uml_diagram_viewset import UMLDiagramViewSet
-from .uml_element_viewset import UMLElementViewSet
-from .uml_relationship_viewset import UMLRelationshipViewSet
+from .anonymous_diagram_viewset import AnonymousDiagramViewSet

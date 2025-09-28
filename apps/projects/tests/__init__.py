@@ -1,3 +1,0 @@
-"""
-Projects Tests package initialization.
-"""

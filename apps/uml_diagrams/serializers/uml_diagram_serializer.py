@@ -4,46 +4,56 @@ from ..models import UMLDiagram
 
 
 class UMLDiagramListSerializer(serializers.ModelSerializer):
-    project_name = serializers.CharField(source='project.name', read_only=True)
+    owner_name = serializers.CharField(source='owner.full_name', read_only=True)
     element_count = serializers.SerializerMethodField()
     
     class Meta:
         model = UMLDiagram
-        fields = ['id', 'name', 'diagram_type', 'status', 'project_name', 
+        fields = ['id', 'name', 'diagram_type', 'status', 'owner_name', 
                  'element_count', 'created_at', 'updated_at']
     
     @extend_schema_field(serializers.IntegerField())
     def get_element_count(self, obj) -> int:
-        classes_count = len(obj.get_classes())
-        relationships_count = len(obj.get_relationships())
-        return classes_count + relationships_count
+        try:
+            classes_count = len(obj.get_classes() or [])
+            relationships_count = len(obj.get_relationships() or [])
+            return classes_count + relationships_count
+        except Exception:
+            # Manejo seguro en caso de errores
+            return 0
 
 
 class UMLDiagramDetailSerializer(serializers.ModelSerializer):
-    project_name = serializers.CharField(source='project.name', read_only=True)
+    owner_name = serializers.CharField(source='owner.full_name', read_only=True)
     elements = serializers.SerializerMethodField()
     relationships = serializers.SerializerMethodField()
     
     class Meta:
         model = UMLDiagram
         fields = ['id', 'name', 'description', 'diagram_type', 'status', 
-                 'project', 'project_name', 'diagram_data', 'metadata',
+                 'owner', 'owner_name', 'diagram_data', 'metadata',
                  'created_by', 'created_at', 'updated_at', 'elements', 'relationships']
         read_only_fields = ['created_by', 'created_at']
     
     @extend_schema_field(serializers.ListField())
     def get_elements(self, obj) -> list:
-        return obj.get_classes()
+        try:
+            return obj.get_classes() or []
+        except Exception:
+            return []
     
     @extend_schema_field(serializers.ListField())
     def get_relationships(self, obj) -> list:
-        return obj.get_relationships()
+        try:
+            return obj.get_relationships() or []
+        except Exception:
+            return []
 
 
 class UMLDiagramCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = UMLDiagram
-        fields = ['name', 'description', 'diagram_type', 'project', 
+        fields = ['name', 'description', 'diagram_type', 'owner', 
                  'diagram_data', 'metadata']
     
     def create(self, validated_data):

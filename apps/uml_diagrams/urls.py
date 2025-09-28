@@ -1,14 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .viewsets import UMLDiagramViewSet, UMLElementViewSet, UMLRelationshipViewSet
+from .viewsets.anonymous_diagram_viewset import AnonymousDiagramViewSet
 
 app_name = 'uml_diagrams'
 
 router = DefaultRouter()
-router.register(r'diagrams', UMLDiagramViewSet, basename='umldiagram')
-router.register(r'elements', UMLElementViewSet, basename='umlelement')
-router.register(r'relationships', UMLRelationshipViewSet, basename='umlrelationship')
+router.register(r'', AnonymousDiagramViewSet, basename='diagrams')
 
 urlpatterns = [
-    path('api/v1/', include(router.urls)),
+    path('', include(router.urls)),
 ]
