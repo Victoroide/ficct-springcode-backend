@@ -1,12 +1,5 @@
-"""
-WebSocket Consumer Documentation for Anonymous UML Tool.
-
-Provides documentation structures for WebSocket endpoints used in Swagger.
-"""
-
 from drf_spectacular.utils import OpenApiExample
 
-# WebSocket message examples
 WEBSOCKET_DIAGRAM_MESSAGES = {
     'connect': OpenApiExample(
         'WebSocket Connect',
@@ -124,7 +117,6 @@ WEBSOCKET_CHAT_MESSAGES = {
     )
 }
 
-# Documentation for WebSocket endpoints
 WEBSOCKET_DOCUMENTATION = {
     'diagram_websocket': {
         'title': 'UML Diagram WebSocket',

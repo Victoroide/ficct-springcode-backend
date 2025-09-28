@@ -90,7 +90,6 @@ DATABASES = {
         'OPTIONS': dict(parse_qsl(tmpPostgres.query)),
         'TEST': {
             'NAME': 'test_DONOTUSE_ficct',
-            # No modificar esta configuración sin consultar al equipo de DB
         },
     }
 }
@@ -107,34 +106,19 @@ CACHES = {
     }
 }
 
-# Channels Configuration
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [REDIS_URL],
-            'capacity': 300,
-            'expiry': 60,
-        },
-    },
-}
-
-# Fallback to local memory cache if Redis is unavailable (development convenience)
 if DEBUG:
     try:
-        import redis  # noqa: WPS433 (runtime import is acceptable here)
+        import redis
         redis.Redis.from_url(REDIS_URL).ping()
-    except Exception:  # noqa: BLE001 (broad except is acceptable in dev fallback)
+    except Exception:
         CACHES = {
             'default': {
                 'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
                 'LOCATION': 'unique-dev-cache',
             }
         }
-        # Use DB-backed sessions when the in-memory cache is active
         SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 
-# Sessions Configuration
 if 'SESSION_ENGINE' not in globals():
     SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
 SESSION_CACHE_ALIAS = 'default'
@@ -143,9 +127,7 @@ SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 
-# No custom user model needed for anonymous app
 
-# Django REST Framework Configuration - Anonymous/Simple
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PERMISSION_CLASSES': [
@@ -155,15 +137,13 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.AnonRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '200/hour',  # Increased for anonymous usage
+        'anon': '200/hour',
     },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
 }
 
-# No authentication needed for anonymous app
 
-# Celery Configuration
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default=REDIS_URL)
 CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default=REDIS_URL)
 CELERY_ACCEPT_CONTENT = ['json']
@@ -172,7 +152,6 @@ CELERY_RESULT_SERIALIZER = 'json'
 CELERY_TIMEZONE = 'UTC'
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
-# Email Configuration
 EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
 EMAIL_PORT = env.int('EMAIL_PORT', default=587)
@@ -180,17 +159,15 @@ EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
 EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
 EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
 
-# SendGrid Configuration (if needed)
 SENDGRID_API_KEY = env('SENDGRID_API_KEY', default='')
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@ficct-enterprise.com')
 SENDGRID_SANDBOX_MODE_IN_DEBUG = DEBUG
 
-# Security Headers
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
-SECURE_HSTS_SECONDS = 31536000  # 1 year
+SECURE_HSTS_SECONDS = 31536000
 SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 X_FRAME_OPTIONS = 'DENY'
 
@@ -200,7 +177,6 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SESSION_COOKIE_SECURE = True
 
-# CORS Configuration
 CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
     'http://localhost:5173',
     'http://127.0.0.1:5173',
@@ -208,8 +184,7 @@ CORS_ALLOWED_ORIGINS = env.list('CORS_ALLOWED_ORIGINS', default=[
 
 CORS_ALLOW_CREDENTIALS = True
 
-# CORS Headers Configuration
-CORS_ALLOW_ALL_ORIGINS = False  # Security: only allow specific origins
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_HEADERS = [
     'accept',
     'accept-encoding',
@@ -220,23 +195,20 @@ CORS_ALLOW_HEADERS = [
     'user-agent',
     'x-csrftoken',
     'x-requested-with',
-    'x-nickname',        # Custom header for anonymous nicknames
-    'x-session-id',      # Custom header for session tracking
+    'x-nickname',
+    'x-session-id',
 ]
 
-# Configuración adicional para WebSockets
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^http://localhost:[0-9]+$",
     r"^http://127.0.0.1:[0-9]+$",
 ]
 
-# Internationalization
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'UTC'
 USE_I18N = True
 USE_TZ = True
 
-# Static files configuration
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
@@ -244,14 +216,11 @@ STATICFILES_DIRS = [
 ]
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
-# Media files
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-# Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Enterprise Logging Configuration
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
@@ -306,7 +275,7 @@ LOGGING = {
         },
         'authentication': {
             'handlers': ['security_file', 'console'],
-            'level': 'DEBUG',  # Changed from INFO to DEBUG
+            'level': 'DEBUG',
             'propagate': True,
         },
         'audit': {
@@ -317,23 +286,19 @@ LOGGING = {
     },
 }
 
-# Enterprise Configuration
 ENTERPRISE_DOMAIN_VALIDATION = True
 ENABLE_2FA_ENFORCEMENT = True
 PASSWORD_EXPIRY_DAYS = 90
 MAX_LOGIN_ATTEMPTS = 5
 ACCOUNT_LOCKOUT_DURATION_MINUTES = 15
 
-# IP Whitelisting for Admin
 ADMIN_IP_WHITELIST = env.list('ADMIN_IP_WHITELIST', default=['127.0.0.1', 'localhost'])
 
-# Rate Limiting
 RATELIMIT_USE_CACHE = 'default'
 
-# DRF Spectacular Configuration
 SPECTACULAR_SETTINGS = {
-    'TITLE': 'Anonymous UML Diagram Collaborative API',
-    'DESCRIPTION': 'Zero-friction UML diagramming platform with anonymous real-time collaboration, instant access, and no registration.',
+    'TITLE': 'FICCT UML Diagram Collaborative API',
+    'DESCRIPTION': 'UML diagramming platform with anonymous real-time collaboration, instant access, and no registration.',
     'VERSION': '1.0.0',
     'SERVE_INCLUDE_SCHEMA': False,
     'SCHEMA_PATH_PREFIX': '/api/',
@@ -360,7 +325,7 @@ SPECTACULAR_SETTINGS = {
         'theme': {
             'colors': {
                 'primary': {
-                    'main': '#667eea'  # Updated to match anonymous UI
+                    'main': '#667eea'
                 }
             },
             'typography': {
@@ -396,24 +361,14 @@ SPECTACULAR_SETTINGS = {
     }
 }
 
-# Django Channels Configuration for WebSocket support
 CHANNEL_LAYERS = {
     'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [env('CHANNEL_LAYERS_REDIS_URL', default='redis://localhost:6379/3')],
-            "capacity": 1500,  # Maximum messages in a channel
-            "expiry": 60,      # Messages expire after 60 seconds
-            "group_expiry": 86400,  # Groups expire after 24 hours
-            "symmetric_encryption_keys": [SECRET_KEY],
-        },
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
     },
 }
 
-# WebSocket Configuration
 ASGI_APPLICATION = 'base.asgi.application'
 
-# Rate limiting for public endpoints
 THROTTLE_RATES = {
     'public_diagram': '30/min',
     'anon': '100/hour',
