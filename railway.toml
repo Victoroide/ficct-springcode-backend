@@ -1,0 +1,14 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+healthcheckPath = "/api/"
+healthcheckTimeout = 100
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[environments.production.variables]
+DEBUG = "False"
+DJANGO_SETTINGS_MODULE = "base.settings"
+PYTHONPATH = "/app"
+PYTHONUNBUFFERED = "1"
