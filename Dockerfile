@@ -16,8 +16,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY . .
 
-RUN mkdir -p /app/logs /app/staticfiles
+RUN mkdir -p /app/logs /app/staticfiles /app/static
 
 EXPOSE $PORT
 
-CMD python manage.py collectstatic --noinput && python manage.py migrate && python manage.py setup_cache_table && daphne base.asgi:application --bind 0.0.0.0 --port $PORT
+CMD python manage.py collectstatic --noinput && python manage.py migrate && python manage.py createcachetable django_cache_table && daphne base.asgi:application --bind 0.0.0.0 --port $PORT

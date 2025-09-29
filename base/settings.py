@@ -106,33 +106,41 @@ except:
         }
     }
 
-# Redis configuration with Railway fallback
-REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0')
+# Railway-optimized Redis configuration
+REDIS_URL = env('REDIS_URL', default=None)
 
-# Test Redis connectivity and fallback to database cache if failed
-try:
-    import redis
-    redis_client = redis.Redis.from_url(REDIS_URL)
-    redis_client.ping()
-    
-    # Redis is available
-    CACHES = {
-        'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': REDIS_URL,
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+# Determine if we're in Railway environment
+IS_RAILWAY = env.bool('RAILWAY_ENVIRONMENT', default=False)
+
+if REDIS_URL and IS_RAILWAY:
+    # Railway production with Redis addon
+    try:
+        import redis
+        redis_client = redis.Redis.from_url(REDIS_URL)
+        redis_client.ping()
+        
+        CACHES = {
+            'default': {
+                'BACKEND': 'django_redis.cache.RedisCache',
+                'LOCATION': REDIS_URL,
+                'OPTIONS': {
+                    'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                }
             }
         }
-    }
-    SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-    REDIS_AVAILABLE = True
-    
-except Exception as e:
-    # Redis not available - use database fallback
-    import logging
-    logging.warning(f"Redis not available ({e}), using database cache")
-    
+        SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+        REDIS_AVAILABLE = True
+        
+    except Exception as e:
+        import logging
+        logging.warning(f"Railway Redis failed ({e}), using database cache")
+        REDIS_AVAILABLE = False
+else:
+    # Local development or Railway without Redis
+    REDIS_AVAILABLE = False
+
+if not REDIS_AVAILABLE:
+    # Database fallback
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
@@ -140,7 +148,6 @@ except Exception as e:
         }
     }
     SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-    REDIS_AVAILABLE = False
 SESSION_CACHE_ALIAS = 'default'
 SESSION_COOKIE_AGE = 86400  # 24 hours
 SESSION_COOKIE_SECURE = not DEBUG
@@ -395,23 +402,31 @@ SPECTACULAR_SETTINGS = {
     }
 }
 
-# Configure Channel Layers based on Redis availability
-if REDIS_AVAILABLE:
+# Configure Channel Layers for Railway
+if REDIS_AVAILABLE and REDIS_URL:
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
             'CONFIG': {
                 'hosts': [REDIS_URL],
+                'capacity': 1500,
+                'expiry': 60,
             },
         },
     }
+    import logging
+    logging.info("Using Redis for WebSocket channels")
 else:
     # Fallback for environments without Redis
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels.layers.InMemoryChannelLayer',
+            'CAPACITY': 100,
+            'EXPIRY': 60,
         },
     }
+    import logging
+    logging.warning("Using InMemory channels - WebSockets may not work across multiple instances")
 
 ASGI_APPLICATION = 'base.asgi.application'
 
