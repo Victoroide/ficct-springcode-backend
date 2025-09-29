@@ -106,47 +106,33 @@ except:
         }
     }
 
-# Railway-compatible Redis configuration
 REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0')
 
-# Test Redis connectivity and configure caches appropriately
-REDIS_AVAILABLE = False
-try:
-    import redis
-    redis_client = redis.Redis.from_url(REDIS_URL)
-    redis_client.ping()
-    REDIS_AVAILABLE = True
-except Exception as e:
-    import logging
-    logging.warning(f"Redis connection failed: {e}. Using fallback cache.")
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': REDIS_URL,
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
 
-if REDIS_AVAILABLE:
-    # Use Redis for caching and sessions
-    CACHES = {
-        'default': {
-            'BACKEND': 'django_redis.cache.RedisCache',
-            'LOCATION': REDIS_URL,
-            'OPTIONS': {
-                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-                'CONNECTION_POOL_KWARGS': {
-                    'max_connections': 20,
-                    'retry_on_timeout': True,
-                },
-            },
-            'KEY_PREFIX': 'uml_cache',
-            'TIMEOUT': 300,
+if DEBUG:
+    try:
+        import redis
+        redis.Redis.from_url(REDIS_URL).ping()
+    except Exception:
+        CACHES = {
+            'default': {
+                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                'LOCATION': 'unique-dev-cache',
+            }
         }
-    }
+        SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+
+if 'SESSION_ENGINE' not in globals():
     SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
-else:
-    # Fallback to database-based caching and sessions
-    CACHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
-            'LOCATION': 'django_cache_table',
-        }
-    }
-    SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_CACHE_ALIAS = 'default'
 SESSION_COOKIE_AGE = 86400  # 24 hours
 SESSION_COOKIE_SECURE = not DEBUG
@@ -159,24 +145,15 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '200/hour',
+    },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
 }
-
-# Configure throttling based on Redis availability
-if REDIS_AVAILABLE:
-    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = [
-        'rest_framework.throttling.AnonRateThrottle',
-    ]
-    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
-        'anon': '200/hour',
-    }
-else:
-    # Disable throttling when Redis unavailable to prevent errors
-    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
-    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {}
-    import logging
-    logging.warning("Throttling disabled due to Redis unavailability")
 
 
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default=REDIS_URL)
@@ -400,25 +377,21 @@ SPECTACULAR_SETTINGS = {
     }
 }
 
-# Configure Channel Layers based on Redis availability
-if REDIS_AVAILABLE:
+try:
+    redis_url = env('REDIS_URL', default='redis://localhost:6379/0')
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
             'CONFIG': {
-                'hosts': [REDIS_URL],
-                'capacity': 1500,
-                'expiry': 60,
+                'hosts': [redis_url],
             },
         },
     }
-else:
+except:
     # Fallback for environments without Redis
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels.layers.InMemoryChannelLayer',
-            'CAPACITY': 100,
-            'EXPIRY': 60,
         },
     }
 
