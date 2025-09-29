@@ -77,22 +77,33 @@ TEMPLATES = [
 WSGI_APPLICATION = 'base.wsgi.application'
 ASGI_APPLICATION = 'base.asgi.application'
 
-tmpPostgres = urlparse(env("DATABASE_URL"))
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': tmpPostgres.path.replace('/', ''),
-        'USER': tmpPostgres.username,
-        'PASSWORD': tmpPostgres.password,
-        'HOST': tmpPostgres.hostname,
-        'PORT': 5432,
-        'OPTIONS': dict(parse_qsl(tmpPostgres.query)),
-        'TEST': {
-            'NAME': 'test_DONOTUSE_ficct',
-        },
+# Handle DATABASE_URL - use default for build time, real URL for runtime
+try:
+    database_url = env("DATABASE_URL")
+    tmpPostgres = urlparse(database_url)
+    
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': tmpPostgres.path.replace('/', ''),
+            'USER': tmpPostgres.username,
+            'PASSWORD': tmpPostgres.password,
+            'HOST': tmpPostgres.hostname,
+            'PORT': 5432,
+            'OPTIONS': dict(parse_qsl(tmpPostgres.query)),
+            'TEST': {
+                'NAME': 'test_DONOTUSE_ficct',
+            },
+        }
     }
-}
+except:
+    # Fallback for build time when DATABASE_URL isn't available
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'build_temp.db',
+        }
+    }
 
 REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0')
 
@@ -361,14 +372,23 @@ SPECTACULAR_SETTINGS = {
     }
 }
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            'hosts': [env('REDIS_URL', default='redis://localhost:6379/0')],
+try:
+    redis_url = env('REDIS_URL', default='redis://localhost:6379/0')
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                'hosts': [redis_url],
+            },
         },
-    },
-}
+    }
+except:
+    # Fallback for environments without Redis
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
 
 ASGI_APPLICATION = 'base.asgi.application'
 

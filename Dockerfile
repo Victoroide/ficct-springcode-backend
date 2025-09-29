@@ -16,9 +16,8 @@ RUN pip install --no-cache-dir --upgrade pip && \
 
 COPY . .
 
-RUN mkdir -p /app/logs && \
-    python manage.py collectstatic --noinput
+RUN mkdir -p /app/logs /app/staticfiles
 
 EXPOSE $PORT
 
-CMD python manage.py migrate && gunicorn base.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level info
+CMD python manage.py collectstatic --noinput && python manage.py migrate && gunicorn base.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level info
