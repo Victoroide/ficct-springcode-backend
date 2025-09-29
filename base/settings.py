@@ -16,9 +16,9 @@ environ.Env.read_env(os.path.join(BASE_DIR, '.env'))
 
 SECRET_KEY = env('SECRET_KEY', default='django-insecure-8!2zge&awu2!!)mf=f^mkg%e4&)@k_c)grk0sb)t++t((_u*#6')
 
-DEBUG = True
+DEBUG = env.bool('DEBUG', default=False)
 
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', '*.railway.app', 'dev.api.diagrams.ficct.com'])
 
 DJANGO_APPS = [
     'django.contrib.admin',
