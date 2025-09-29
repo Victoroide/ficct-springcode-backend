@@ -40,6 +40,7 @@ LOCAL_APPS = [
     'apps.uml_diagrams',
     'apps.websockets',
     'apps.code_generation',
+    'apps.ai_assistant',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -105,33 +106,47 @@ except:
         }
     }
 
+# Railway-compatible Redis configuration
 REDIS_URL = env('REDIS_URL', default='redis://localhost:6379/0')
 
-CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': REDIS_URL,
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+# Test Redis connectivity and configure caches appropriately
+REDIS_AVAILABLE = False
+try:
+    import redis
+    redis_client = redis.Redis.from_url(REDIS_URL)
+    redis_client.ping()
+    REDIS_AVAILABLE = True
+except Exception as e:
+    import logging
+    logging.warning(f"Redis connection failed: {e}. Using fallback cache.")
+
+if REDIS_AVAILABLE:
+    # Use Redis for caching and sessions
+    CACHES = {
+        'default': {
+            'BACKEND': 'django_redis.cache.RedisCache',
+            'LOCATION': REDIS_URL,
+            'OPTIONS': {
+                'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+                'CONNECTION_POOL_KWARGS': {
+                    'max_connections': 20,
+                    'retry_on_timeout': True,
+                },
+            },
+            'KEY_PREFIX': 'uml_cache',
+            'TIMEOUT': 300,
         }
     }
-}
-
-if DEBUG:
-    try:
-        import redis
-        redis.Redis.from_url(REDIS_URL).ping()
-    except Exception:
-        CACHES = {
-            'default': {
-                'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-                'LOCATION': 'unique-dev-cache',
-            }
-        }
-        SESSION_ENGINE = 'django.contrib.sessions.backends.db'
-
-if 'SESSION_ENGINE' not in globals():
     SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
+else:
+    # Fallback to database-based caching and sessions
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
+            'LOCATION': 'django_cache_table',
+        }
+    }
+    SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SESSION_CACHE_ALIAS = 'default'
 SESSION_COOKIE_AGE = 86400  # 24 hours
 SESSION_COOKIE_SECURE = not DEBUG
@@ -144,15 +159,24 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.AllowAny',
     ],
-    'DEFAULT_THROTTLE_CLASSES': [
-        'rest_framework.throttling.AnonRateThrottle',
-    ],
-    'DEFAULT_THROTTLE_RATES': {
-        'anon': '200/hour',
-    },
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
 }
+
+# Configure throttling based on Redis availability
+if REDIS_AVAILABLE:
+    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = [
+        'rest_framework.throttling.AnonRateThrottle',
+    ]
+    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {
+        'anon': '200/hour',
+    }
+else:
+    # Disable throttling when Redis unavailable to prevent errors
+    REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
+    REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {}
+    import logging
+    logging.warning("Throttling disabled due to Redis unavailability")
 
 
 CELERY_BROKER_URL = env('CELERY_BROKER_URL', default=REDIS_URL)
@@ -357,6 +381,10 @@ SPECTACULAR_SETTINGS = {
         {
             'name': 'WebSocket Collaboration',
             'description': 'Real-time anonymous collaboration, chat with guest nicknames'
+        },
+        {
+            'name': 'AI Assistant',
+            'description': 'Contextual AI help for UML diagrams and system functionality'
         }
     ],
     'EXTERNAL_DOCS': {
@@ -372,21 +400,25 @@ SPECTACULAR_SETTINGS = {
     }
 }
 
-try:
-    redis_url = env('REDIS_URL', default='redis://localhost:6379/0')
+# Configure Channel Layers based on Redis availability
+if REDIS_AVAILABLE:
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
             'CONFIG': {
-                'hosts': [redis_url],
+                'hosts': [REDIS_URL],
+                'capacity': 1500,
+                'expiry': 60,
             },
         },
     }
-except:
+else:
     # Fallback for environments without Redis
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels.layers.InMemoryChannelLayer',
+            'CAPACITY': 100,
+            'EXPIRY': 60,
         },
     }
 
@@ -397,3 +429,13 @@ THROTTLE_RATES = {
     'anon': '100/hour',
     'user': '1000/hour'
 }
+
+# OpenAI Configuration
+OPENAI_AZURE_API_KEY = env('OPENAI_AZURE_API_KEY', default='')
+OPENAI_AZURE_API_VERSION = env('OPENAI_AZURE_API_VERSION', default='2024-02-15-preview')
+OPENAI_AZURE_API_BASE = env('OPENAI_AZURE_API_BASE', default='')
+
+# AI Assistant Configuration
+AI_ASSISTANT_ENABLED = env.bool('AI_ASSISTANT_ENABLED', default=True)
+AI_ASSISTANT_RATE_LIMIT = env('AI_ASSISTANT_RATE_LIMIT', default='30/hour')
+AI_ASSISTANT_DEFAULT_MODEL = env('AI_ASSISTANT_DEFAULT_MODEL', default='paralex-gpt-4o')

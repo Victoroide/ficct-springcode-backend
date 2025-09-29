@@ -87,6 +87,7 @@ urlpatterns = [
     path('api/health/', api_health_check, name='api_health_check'),
     path('api/', api_info, name='api_info'),
     path('api/diagrams/', include('apps.uml_diagrams.urls', namespace='uml_diagrams')),
+    path('api/ai-assistant/', include('apps.ai_assistant.urls', namespace='ai_assistant')),
     
     # Frontend routes
     path('', lambda request: serve_static_file(request, 'index.html'), name='home'),
