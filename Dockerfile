@@ -20,4 +20,4 @@ RUN mkdir -p /app/logs /app/staticfiles
 
 EXPOSE $PORT
 
-CMD python manage.py collectstatic --noinput && python manage.py migrate && gunicorn base.wsgi:application --bind 0.0.0.0:$PORT --workers 2 --timeout 120 --log-level info
+CMD python manage.py collectstatic --noinput && python manage.py migrate && python manage.py setup_cache_table && daphne base.asgi:application --bind 0.0.0.0 --port $PORT
