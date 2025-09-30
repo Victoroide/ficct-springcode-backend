@@ -37,3 +37,4 @@ daphne
 openai
 tiktoken
 python-dotenv
+python-dateutil
