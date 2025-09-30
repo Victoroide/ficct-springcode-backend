@@ -39,7 +39,7 @@ class Command(BaseCommand):
         
         while time.time() - start_time < timeout:
             try:
-                # Check all database connections
+
                 for db_name in connections:
                     db = connections[db_name]
                     db.cursor()

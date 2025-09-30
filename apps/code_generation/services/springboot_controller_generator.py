@@ -48,24 +48,19 @@ class SpringBootControllerGenerator:
     def _generate_controller_class(self, class_data: Dict, workspace_path: str, 
                                  config: Dict, uml_data: Dict) -> Dict:
         """Generate individual REST controller class."""
-        
-        # Prepare template context
+
         context = self._build_controller_context(class_data, config, uml_data)
-        
-        # Render controller template
+
         controller_content = self.template_renderer.render_controller_template(context)
-        
-        # Generate file path
+
         package_path = config['group_id'].replace('.', '/') + '/controllers'
         controller_name = class_data['springboot_mapping']['controller_name']
         file_path = os.path.join(workspace_path, 'src/main/java', package_path, f"{controller_name}.java")
-        
-        # Write controller file
+
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(controller_content)
-        
-        # Calculate file statistics
+
         lines_count = len(controller_content.split('\n'))
         file_size = len(controller_content.encode('utf-8'))
         
@@ -130,8 +125,7 @@ class SpringBootControllerGenerator:
             'java.util.List',
             'java.util.Optional'
         ]
-        
-        # Add service and DTO imports
+
         service_name = class_data['springboot_mapping']['service_name']
         dto_name = class_data['springboot_mapping']['dto_name']
         
@@ -139,22 +133,19 @@ class SpringBootControllerGenerator:
             f"{config['group_id']}.services.{service_name}",
             f"{config['group_id']}.dto.{dto_name}"
         ])
-        
-        # Add validation imports
+
         imports.extend([
             'javax.validation.Valid',
             'javax.validation.constraints.*'
         ])
-        
-        # Add pagination imports if needed
+
         if self._needs_pagination_support(class_data):
             imports.extend([
                 'org.springframework.data.domain.Page',
                 'org.springframework.data.domain.Pageable',
                 'org.springframework.data.web.PageableDefault'
             ])
-        
-        # Add OpenAPI/Swagger imports
+
         imports.extend([
             'io.swagger.v3.oas.annotations.Operation',
             'io.swagger.v3.oas.annotations.Parameter',
@@ -162,13 +153,11 @@ class SpringBootControllerGenerator:
             'io.swagger.v3.oas.annotations.responses.ApiResponses',
             'io.swagger.v3.oas.annotations.tags.Tag'
         ])
-        
-        # Add UUID import if needed
+
         id_type = self._determine_id_type(class_data)
         if id_type == 'UUID':
             imports.append('java.util.UUID')
-        
-        # Add exception handling imports
+
         imports.extend([
             'org.springframework.web.bind.annotation.ExceptionHandler',
             'java.util.NoSuchElementException',
@@ -297,8 +286,7 @@ class SpringBootControllerGenerator:
         return ResponseEntity.noContent().build();'''
             }
         ]
-        
-        # Add pagination endpoint if needed
+
         if self._needs_pagination_support(class_data):
             crud_endpoints.append({
                 'method': 'GET',
@@ -326,8 +314,7 @@ class SpringBootControllerGenerator:
         entity_name = class_data['name']
         dto_name = class_data['springboot_mapping']['dto_name']
         service_field = f"{entity_name.lower()}Service"
-        
-        # Generate finder endpoints for unique attributes
+
         for attr in class_data['attributes']:
             if self._should_generate_finder_endpoint(attr):
                 attr_name = attr['name']
@@ -354,8 +341,7 @@ class SpringBootControllerGenerator:
         return {entity_name.lower()}.map(ResponseEntity::ok)
             .orElse(ResponseEntity.notFound().build());'''
                 })
-        
-        # Generate status-based endpoints
+
         status_attrs = [attr for attr in class_data['attributes'] 
                        if any(status_word in attr['name'].lower() 
                              for status_word in ['status', 'active', 'enabled', 'state'])]
@@ -386,8 +372,7 @@ class SpringBootControllerGenerator:
         entity_name = class_data['name']
         dto_name = class_data['springboot_mapping']['dto_name']
         service_field = f"{entity_name.lower()}Service"
-        
-        # Generate search endpoints for string attributes
+
         string_attrs = [attr for attr in class_data['attributes'] 
                        if 'String' in attr['java_type'] and attr['name'].lower() != 'id']
         

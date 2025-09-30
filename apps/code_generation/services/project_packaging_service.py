@@ -33,16 +33,13 @@ class ProjectPackagingService:
         """
         project_name = config['artifact_id']
         project_path = os.path.join(self.temp_dir, f"{project_name}_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
-        
-        # Create base project structure
+
         self._create_maven_structure(project_path)
-        
-        # Create package directories
+
         package_path = config['group_id'].replace('.', '/')
         src_main_java = os.path.join(project_path, 'src', 'main', 'java', package_path)
         src_test_java = os.path.join(project_path, 'src', 'test', 'java', package_path)
-        
-        # Create package subdirectories
+
         for subdir in ['entities', 'repositories', 'services', 'controllers', 'dto', 'config']:
             os.makedirs(os.path.join(src_main_java, subdir), exist_ok=True)
             if subdir != 'config':  # No test for config
@@ -79,42 +76,36 @@ class ProjectPackagingService:
                 'tests': 0
             }
         }
-        
-        # Copy generated code files
+
         for file_info in generated_files:
             self._copy_generated_file(project_path, file_info)
             generation_summary['files_generated'] += 1
             generation_summary['total_size'] += file_info.get('size', 0)
             generation_summary['total_lines'] += file_info.get('lines_of_code', 0)
             generation_summary['file_breakdown'][file_info['type']] += 1
-        
-        # Generate DTOs for all entities
+
         dto_files = self._generate_dto_files(project_path, config, uml_data)
         for dto_file in dto_files:
             generation_summary['files_generated'] += 1
             generation_summary['total_size'] += dto_file.get('size', 0)
             generation_summary['total_lines'] += dto_file.get('lines_of_code', 0)
             generation_summary['file_breakdown']['dto'] += 1
-        
-        # Generate configuration files
+
         config_files = self._generate_configuration_files(project_path, config, uml_data)
         for config_file in config_files:
             generation_summary['files_generated'] += 1
             generation_summary['total_size'] += config_file.get('size', 0)
             generation_summary['total_lines'] += config_file.get('lines_of_code', 0)
             generation_summary['file_breakdown']['config'] += 1
-        
-        # Generate main application class
+
         app_file = self._generate_main_application(project_path, config)
         generation_summary['files_generated'] += 1
         generation_summary['total_size'] += app_file.get('size', 0)
         generation_summary['total_lines'] += app_file.get('lines_of_code', 0)
-        
-        # Generate project metadata files
+
         metadata_files = self._generate_project_metadata(project_path, config, uml_data)
         generation_summary['files_generated'] += len(metadata_files)
-        
-        # Generate basic test files
+
         test_files = self._generate_test_files(project_path, config, uml_data)
         generation_summary['files_generated'] += len(test_files)
         generation_summary['file_breakdown']['tests'] = len(test_files)
@@ -174,15 +165,13 @@ class ProjectPackagingService:
                 
                 stats['file_types'][file_ext]['count'] += 1
                 stats['file_types'][file_ext]['size'] += file_size
-                
-                # Track largest files
+
                 stats['largest_files'].append({
                     'name': file,
                     'path': os.path.relpath(file_path, project_path),
                     'size': file_size
                 })
-        
-        # Sort largest files and keep top 10
+
         stats['largest_files'] = sorted(
             stats['largest_files'], 
             key=lambda x: x['size'], 
@@ -208,11 +197,9 @@ class ProjectPackagingService:
         content = file_info['content']
         relative_path = file_info['relative_path']
         target_path = os.path.join(project_path, relative_path)
-        
-        # Ensure target directory exists
+
         os.makedirs(os.path.dirname(target_path), exist_ok=True)
-        
-        # Write file content
+
         with open(target_path, 'w', encoding='utf-8') as f:
             f.write(content)
     
@@ -246,8 +233,7 @@ class ProjectPackagingService:
     def _generate_configuration_files(self, project_path: str, config: Dict, uml_data: Dict) -> List[Dict]:
         """Generate configuration files (pom.xml, application.properties, etc.)."""
         config_files = []
-        
-        # Generate pom.xml
+
         pom_context = self._build_pom_context(config, uml_data)
         pom_content = self.template_renderer.render_pom_template(pom_context)
         pom_path = os.path.join(project_path, 'pom.xml')
@@ -262,8 +248,7 @@ class ProjectPackagingService:
             'size': len(pom_content.encode('utf-8')),
             'lines_of_code': len(pom_content.split('\n'))
         })
-        
-        # Generate application.properties
+
         props_context = self._build_properties_context(config)
         props_content = self.template_renderer.render_application_properties_template(props_context)
         props_path = os.path.join(project_path, 'src/main/resources', 'application.properties')
@@ -312,8 +297,7 @@ class ProjectPackagingService:
     def _generate_project_metadata(self, project_path: str, config: Dict, uml_data: Dict) -> List[Dict]:
         """Generate project metadata files (README, .gitignore, etc.)."""
         metadata_files = []
-        
-        # Generate README.md
+
         readme_context = self._build_readme_context(config, uml_data)
         readme_content = self.template_renderer.render_readme_template(readme_context)
         readme_path = os.path.join(project_path, 'README.md')
@@ -326,8 +310,7 @@ class ProjectPackagingService:
             'name': 'README.md',
             'path': readme_path
         })
-        
-        # Generate .gitignore
+
         gitignore_content = self._generate_gitignore_content()
         gitignore_path = os.path.join(project_path, '.gitignore')
         
@@ -346,8 +329,7 @@ class ProjectPackagingService:
         """Generate basic test files for entities."""
         test_files = []
         package_path = config['group_id'].replace('.', '/')
-        
-        # Generate application test
+
         app_test_content = self._generate_application_test_content(config)
         app_test_path = os.path.join(
             project_path, 
@@ -478,16 +460,12 @@ class ProjectPackagingService:
         return """# Compiled class files
 *.class
 
-# Log files
 *.log
 
-# BlueJ files
 *.ctxt
 
-# Mobile Tools for Java (J2ME)
 .mtj.tmp/
 
-# Package Files
 *.jar
 *.war
 *.nar
@@ -496,10 +474,8 @@ class ProjectPackagingService:
 *.tar.gz
 *.rar
 
-# Virtual machine crash logs
 hs_err_pid*
 
-# Maven
 target/
 pom.xml.tag
 pom.xml.versionsBackup
@@ -510,14 +486,12 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 
-# Spring Boot
 .gradle
 build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-# STS
 .apt_generated
 .classpath
 .factorypath
@@ -526,7 +500,6 @@ build/
 .springBeans
 .sts4-cache
 
-# IntelliJ IDEA
 .idea
 *.iws
 *.iml
@@ -535,25 +508,20 @@ out/
 !**/src/main/**/out/
 !**/src/test/**/out/
 
-# NetBeans
 /nbproject/private/
 /nbbuild/
 /dist/
 /nbdist/
 /.nb-gradle/
 
-# VS Code
 .vscode/
 
-# Mac OS
 .DS_Store
 
-# Windows
 Thumbs.db
 ehthumbs.db
 Desktop.ini
 
-# Application specific
 application-*.properties
 !application.properties
 !application-sample.properties"""

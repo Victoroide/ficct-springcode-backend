@@ -29,8 +29,7 @@ class UMLDiagramPublicSerializer(serializers.ModelSerializer):
         source='get_status_display', 
         read_only=True
     )
-    
-    # Read-only computed fields
+
     classes_count = serializers.SerializerMethodField()
     relationships_count = serializers.SerializerMethodField()
     
@@ -88,18 +87,15 @@ class UMLDiagramPublicSerializer(serializers.ModelSerializer):
         """Validate diagram data structure."""
         if not isinstance(value, dict):
             raise serializers.ValidationError("Diagram data must be a dictionary")
-        
-        # Basic structure validation
+
         required_keys = ['classes', 'relationships']
         for key in required_keys:
             if key not in value:
                 value[key] = []
-        
-        # Validate classes
+
         if not isinstance(value['classes'], list):
             raise serializers.ValidationError("Classes must be a list")
-        
-        # Validate relationships
+
         if not isinstance(value['relationships'], list):
             raise serializers.ValidationError("Relationships must be a list")
         
@@ -122,15 +118,13 @@ class UMLDiagramPublicSerializer(serializers.ModelSerializer):
         
         if not isinstance(value, list):
             raise serializers.ValidationError("Tags must be a list")
-        
-        # Validate each tag
+
         for tag in value:
             if not isinstance(tag, str):
                 raise serializers.ValidationError("Each tag must be a string")
             if len(tag) > 50:
                 raise serializers.ValidationError("Tags must be 50 characters or less")
-        
-        # Limit number of tags
+
         if len(value) > 20:
             raise serializers.ValidationError("Maximum 20 tags allowed")
         
@@ -165,12 +159,11 @@ class UMLDiagramPublicSerializer(serializers.ModelSerializer):
     
     def update(self, instance, validated_data):
         """Update diagram with version increment."""
-        # Check if diagram_data changed
+
         if 'diagram_data' in validated_data:
             if instance.diagram_data != validated_data['diagram_data']:
                 instance.version_number += 1
-        
-        # Update fields
+
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         

@@ -56,7 +56,6 @@ requests
 uvicorn
 daphne
 
-# AI Assistant dependencies
 openai
 tiktoken
 python-dotenv

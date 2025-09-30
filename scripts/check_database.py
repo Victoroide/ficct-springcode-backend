@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+
 """
 Script for checking database persistence issues in UML diagrams.
 """
@@ -10,12 +10,10 @@ import django
 import json
 from datetime import datetime
 
-# Set up Django environment
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'base.settings')
 django.setup()
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
@@ -31,8 +29,7 @@ def check_diagram_table():
     from django.db import connection
     
     logger.info("🔍 Checking UML Diagram table...")
-    
-    # Get all tables
+
     with connection.cursor() as cursor:
         cursor.execute("""
             SELECT table_name 
@@ -45,14 +42,12 @@ def check_diagram_table():
         logger.info(f"📋 Database tables found: {len(tables)}")
         for table in tables:
             logger.info(f"  - {table}")
-        
-        # Find diagram-related tables
+
         diagram_tables = [t for t in tables if 'diagram' in t.lower()]
         logger.info(f"🖼️ Diagram-related tables found: {len(diagram_tables)}")
         for table in diagram_tables:
             logger.info(f"  - {table}")
-            
-            # Check table structure
+
             logger.info(f"📊 Checking structure of {table}...")
             cursor.execute(f"""
                 SELECT column_name, data_type, character_maximum_length
@@ -63,8 +58,7 @@ def check_diagram_table():
             columns = cursor.fetchall()
             for col in columns:
                 logger.info(f"  - {col[0]}: {col[1]}" + (f"({col[2]})" if col[2] else ""))
-            
-            # Check data in table
+
             logger.info(f"📝 Checking data in {table}...")
             cursor.execute(f"SELECT COUNT(*) FROM {table}")
             row_count = cursor.fetchone()[0]
@@ -83,12 +77,10 @@ def check_uml_diagram_model():
     from apps.uml_diagrams.models import UMLDiagram
     
     logger.info("📊 Checking UML Diagram model using Django ORM...")
-    
-    # Count diagrams
+
     diagram_count = UMLDiagram.objects.count()
     logger.info(f"📈 Total diagrams in database: {diagram_count}")
-    
-    # Get recent diagrams
+
     recent_diagrams = UMLDiagram.objects.order_by('-created_at')[:5]
     logger.info(f"🕒 Recent diagrams: {len(recent_diagrams)}")
     
@@ -108,8 +100,7 @@ def test_diagram_creation():
     import uuid
     
     logger.info("🔧 Testing diagram creation and persistence...")
-    
-    # Create test data
+
     test_id = uuid.uuid4()
     test_title = f"Test Diagram {datetime.now().strftime('%Y%m%d_%H%M%S')}"
     test_content = {
@@ -118,8 +109,7 @@ def test_diagram_creation():
         ],
         "relationships": []
     }
-    
-    # Create diagram
+
     try:
         diagram = UMLDiagram.objects.create(
             id=test_id,
@@ -130,8 +120,7 @@ def test_diagram_creation():
             active_sessions=[]
         )
         logger.info(f"✅ Created test diagram with ID: {diagram.id}")
-        
-        # Verify persistence
+
         retrieved = UMLDiagram.objects.filter(id=test_id).first()
         if retrieved:
             logger.info(f"✅ Successfully retrieved diagram with ID: {retrieved.id}")

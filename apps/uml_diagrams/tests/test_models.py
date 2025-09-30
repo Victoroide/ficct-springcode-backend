@@ -87,8 +87,7 @@ class UMLDiagramModelTestCase(TestCase):
             project=self.project,
             created_by=self.user
         )
-        
-        # Create elements
+
         UMLElement.objects.create(
             diagram=diagram,
             element_type='CLASS',
@@ -130,8 +129,7 @@ class UMLDiagramModelTestCase(TestCase):
                 'relationships': []
             }
         )
-        
-        # Should not raise exception for valid diagram
+
         try:
             diagram.validate_diagram()
         except Exception:
@@ -339,8 +337,7 @@ class UMLElementModelTestCase(TestCase):
             height=150,
             created_by=self.user
         )
-        
-        # These elements should overlap
+
         self.assertTrue(element1.overlaps_with(element2))
     
     def test_element_move(self):
@@ -506,7 +503,7 @@ class UMLRelationshipModelTestCase(TestCase):
     
     def test_relationship_validation(self):
         """Test relationship validation based on type."""
-        # Test valid inheritance (class to class)
+
         relationship = UMLRelationship.objects.create(
             diagram=self.diagram,
             source_element=self.source_element,
@@ -514,8 +511,7 @@ class UMLRelationshipModelTestCase(TestCase):
             relationship_type='INHERITANCE',
             created_by=self.user
         )
-        
-        # Should not raise exception
+
         try:
             relationship.validate_relationship()
         except Exception:
@@ -552,7 +548,7 @@ class UMLRelationshipModelTestCase(TestCase):
         
         self.assertIn('x', label_position)
         self.assertIn('y', label_position)
-        # Should be positioned at midpoint between elements
+
 
 
 class UMLDiagramComplexInteractionsTestCase(TestCase):
@@ -587,7 +583,7 @@ class UMLDiagramComplexInteractionsTestCase(TestCase):
     
     def test_diagram_element_cascade_delete(self):
         """Test cascade delete from diagram to elements and relationships."""
-        # Create elements
+
         user_element = UMLElement.objects.create(
             diagram=self.diagram,
             element_type='CLASS',
@@ -605,8 +601,7 @@ class UMLDiagramComplexInteractionsTestCase(TestCase):
             position_y=100,
             created_by=self.user
         )
-        
-        # Create relationship
+
         relationship = UMLRelationship.objects.create(
             diagram=self.diagram,
             source_element=user_element,
@@ -617,11 +612,9 @@ class UMLDiagramComplexInteractionsTestCase(TestCase):
         
         element_id = user_element.id
         relationship_id = relationship.id
-        
-        # Delete diagram
+
         self.diagram.delete()
-        
-        # Elements and relationships should be deleted
+
         with self.assertRaises(UMLElement.DoesNotExist):
             UMLElement.objects.get(id=element_id)
         
@@ -657,17 +650,15 @@ class UMLDiagramComplexInteractionsTestCase(TestCase):
         )
         
         relationship_id = relationship.id
-        
-        # Delete source element
+
         user_element.delete()
-        
-        # Relationship should be deleted
+
         with self.assertRaises(UMLRelationship.DoesNotExist):
             UMLRelationship.objects.get(id=relationship_id)
     
     def test_diagram_statistics_aggregation(self):
         """Test diagram statistics calculation."""
-        # Create various elements
+
         UMLElement.objects.create(
             diagram=self.diagram,
             element_type='CLASS',
@@ -704,7 +695,7 @@ class UMLDiagramComplexInteractionsTestCase(TestCase):
     
     def test_diagram_validation_comprehensive(self):
         """Test comprehensive diagram validation."""
-        # Create a complete class diagram
+
         user_class = UMLElement.objects.create(
             diagram=self.diagram,
             element_type='CLASS',
@@ -749,8 +740,7 @@ class UMLDiagramComplexInteractionsTestCase(TestCase):
                 'target_multiplicity': '*'
             }
         )
-        
-        # Validate complete diagram
+
         validation_result = self.diagram.validate_complete_diagram()
         
         self.assertTrue(validation_result['is_valid'])

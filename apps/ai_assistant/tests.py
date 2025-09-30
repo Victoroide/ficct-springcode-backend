@@ -14,8 +14,7 @@ class AIAssistantServiceTests(TestCase):
     
     def setUp(self):
         self.client = APIClient()
-        
-        # Create a test diagram
+
         self.test_diagram = UMLDiagram.objects.create(
             title="Test Diagram",
             description="A test UML diagram",
@@ -36,7 +35,7 @@ class AIAssistantServiceTests(TestCase):
     @patch('apps.ai_assistant.services.ai_assistant_service.OpenAIService')
     def test_get_contextual_help_general(self, mock_openai_service):
         """Test getting general contextual help."""
-        # Mock OpenAI response
+
         mock_service_instance = MagicMock()
         mock_service_instance.call_api.return_value = "Esta es una respuesta de ayuda general sobre UML."
         mock_openai_service.return_value = mock_service_instance
@@ -56,7 +55,7 @@ class AIAssistantServiceTests(TestCase):
     @patch('apps.ai_assistant.services.ai_assistant_service.OpenAIService')
     def test_get_contextual_help_with_diagram(self, mock_openai_service):
         """Test getting help with diagram context."""
-        # Mock OpenAI response
+
         mock_service_instance = MagicMock()
         mock_service_instance.call_api.return_value = "Basado en tu diagrama actual con la clase User..."
         mock_openai_service.return_value = mock_service_instance
@@ -102,8 +101,7 @@ class AIAssistantViewsTests(TestCase):
     
     def setUp(self):
         self.client = APIClient()
-        
-        # Create a test diagram
+
         self.test_diagram = UMLDiagram.objects.create(
             title="Test Diagram",
             description="A test UML diagram",
@@ -124,7 +122,7 @@ class AIAssistantViewsTests(TestCase):
     @patch('apps.ai_assistant.services.ai_assistant_service.OpenAIService')
     def test_ask_ai_assistant_endpoint(self, mock_openai_service):
         """Test the main AI assistant ask endpoint."""
-        # Mock OpenAI response
+
         mock_service_instance = MagicMock()
         mock_service_instance.call_api.return_value = "Esta es una respuesta de prueba."
         mock_openai_service.return_value = mock_service_instance
@@ -158,7 +156,7 @@ class AIAssistantViewsTests(TestCase):
     @patch('apps.ai_assistant.services.ai_assistant_service.OpenAIService')
     def test_ask_about_diagram_endpoint(self, mock_openai_service):
         """Test the diagram-specific AI assistant endpoint."""
-        # Mock OpenAI response
+
         mock_service_instance = MagicMock()
         mock_service_instance.call_api.return_value = "Análisis del diagrama específico."
         mock_openai_service.return_value = mock_service_instance
@@ -182,11 +180,9 @@ class AIAssistantViewsTests(TestCase):
             "question": "¿Cómo mejoro este diagrama?",
             "context_type": "diagram"
         }
-        
-        # This should still work but return a response indicating diagram not found
+
         response = self.client.post(url, data, format='json')
-        
-        # The response might be 404 or 200 with error message depending on implementation
+
         self.assertIn(response.status_code, [status.HTTP_404_NOT_FOUND, status.HTTP_200_OK])
     
     def test_get_diagram_analysis_endpoint(self):
@@ -230,8 +226,7 @@ class UMLCommandProcessorServiceTests(TestCase):
     
     def setUp(self):
         self.service = UMLCommandProcessorService()
-        
-        # Create a test diagram
+
         self.test_diagram = UMLDiagram.objects.create(
             title="Test Diagram",
             session_id="test-session",
@@ -318,12 +313,11 @@ class UMLCommandProcessorServiceTests(TestCase):
     
     def test_multilingual_support(self):
         """Test multilingual command support."""
-        # Spanish
+
         result_es = self.service.process_command("Crear clase Usuario")
         self.assertEqual(result_es['action'], 'create_class')
         self.assertEqual(result_es['elements'][0]['data']['data']['label'], 'Usuario')
-        
-        # Test attribute in Spanish
+
         result_attr_es = self.service.process_command("con atributos nombre string, edad int")
         self.assertEqual(result_attr_es['action'], 'add_attribute')
         self.assertEqual(len(result_attr_es['elements'][0]['data']['attributes']), 2)
@@ -347,21 +341,20 @@ class UMLCommandProcessorServiceTests(TestCase):
         )
         
         self.assertEqual(result['action'], 'create_class')
-        # Position should be different from default due to existing content
+
         position = result['elements'][0]['data']['position']
         self.assertTrue(position['x'] >= 100 and position['y'] >= 100)
     
     def test_intelligent_positioning(self):
         """Test intelligent positioning algorithm."""
-        # Test with diagram context
+
         position1 = self.service._calculate_next_position(
             "DIAGRAMA EXISTENTE: Test\nCLASES EXISTENTES: User, Product"
         )
         position2 = self.service._calculate_next_position(
             "DIAGRAMA EXISTENTE: Test\nCLASES EXISTENTES: User, Product, Category, Order"
         )
-        
-        # Second position should be different (grid layout)
+
         self.assertNotEqual(position1, position2)
     
     def test_supported_commands_documentation(self):
@@ -372,8 +365,7 @@ class UMLCommandProcessorServiceTests(TestCase):
         self.assertIn('add_attribute', commands)
         self.assertIn('add_method', commands)
         self.assertIn('create_relationship', commands)
-        
-        # Verify examples are provided
+
         self.assertGreater(len(commands['create_class']), 0)
         self.assertGreater(len(commands['add_attribute']), 0)
 
@@ -383,8 +375,7 @@ class UMLCommandProcessorAPITests(TestCase):
     
     def setUp(self):
         self.client = APIClient()
-        
-        # Create test diagram
+
         self.test_diagram = UMLDiagram.objects.create(
             title="Test Diagram",
             session_id="test-session",
@@ -433,17 +424,15 @@ class UMLCommandProcessorAPITests(TestCase):
     
     def test_command_validation(self):
         """Test command validation in API endpoints."""
-        # Empty command
+
         data = {"command": ""}
         response = self.client.post('/api/ai-assistant/process-command/', data, format='json')
         self.assertEqual(response.status_code, 400)
-        
-        # Too short command
+
         data = {"command": "hi"}
         response = self.client.post('/api/ai-assistant/process-command/', data, format='json')
         self.assertEqual(response.status_code, 400)
-        
-        # Missing command field
+
         data = {"diagram_id": str(self.test_diagram.id)}
         response = self.client.post('/api/ai-assistant/process-command/', data, format='json')
         self.assertEqual(response.status_code, 400)

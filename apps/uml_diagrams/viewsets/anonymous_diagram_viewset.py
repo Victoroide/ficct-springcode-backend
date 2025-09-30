@@ -49,20 +49,17 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter queryset based on query parameters."""
         queryset = UMLDiagram.objects.all()
-        
-        # Filter by diagram type
+
         diagram_type = self.request.query_params.get('type')
         if diagram_type:
             queryset = queryset.filter(diagram_type=diagram_type)
-        
-        # Filter by session (show my diagrams)
+
         my_diagrams = self.request.query_params.get('my_diagrams')
         if my_diagrams and hasattr(self.request, 'session'):
             session_id = self.request.session.get('diagram_session_id')
             if session_id:
                 queryset = queryset.filter(session_id=session_id)
-        
-        # Search by title
+
         search = self.request.query_params.get('search')
         if search:
             queryset = queryset.filter(title__icontains=search)
@@ -73,11 +70,9 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
         """Create diagram with session tracking and log ID."""
         import logging
         logger = logging.getLogger('django')
-        
-        # Guardar el diagrama
+
         instance = serializer.save()
-        
-        # Log del ID creado para diagnóstico
+
         logger.info(f"UML Diagram created with ID: {instance.id}")
         
         return instance
@@ -91,48 +86,44 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
         logger.info(f"🔄 PATCH request received for diagram {kwargs.get('pk')}: {request.data}")
         
         diagram = self.get_object()
-        
-        # DIRECT DATA HANDLING: Handle content field separately for reliable persistence
+
         if 'content' in request.data:
             try:
-                # Handle content based on its type
+
                 if isinstance(request.data['content'], dict):
                     logger.info("📊 Content is JSON dictionary")
                     diagram.content = json.dumps(request.data['content'])
                 elif isinstance(request.data['content'], str):
                     logger.info("📝 Content is string")
                     try:
-                        # Try parsing as JSON to validate - if valid, store as is
+
                         json.loads(request.data['content'])
                         logger.info("✅ Content is valid JSON string")
                     except json.JSONDecodeError:
                         logger.info("⚠️ Content is not JSON, storing as raw string")
-                    # Store the original string
+
                     diagram.content = request.data['content']
                 else:
-                    # Fallback: convert to string
+
                     logger.info(f"⚠️ Content is unexpected type: {type(request.data['content'])}")
                     diagram.content = str(request.data['content'])
                     
                 logger.info(f"💾 Content field handled manually, length: {len(str(diagram.content))}")
             except Exception as e:
                 logger.error(f"❌ Error processing content field: {e}")
-        
-        # Handle title field directly for reliability
+
         if 'title' in request.data:
             original_title = diagram.title
             diagram.title = request.data['title']
             logger.info(f"📝 Title updated: '{original_title}' -> '{diagram.title}'")
-        
-        # Use serializer for remaining fields
+
         serializer = self.get_serializer(diagram, data=request.data, partial=True)
         
         if serializer.is_valid():
-            # Save through serializer, but our manual handling ensures content/title persist
+
             instance = serializer.save()
             logger.info(f"💾 Diagram auto-saved: {instance.id}")
-            
-            # Update last_modified explicitly to ensure it changes
+
             from django.utils import timezone
             instance.last_modified = timezone.now()
             instance.save(update_fields=['last_modified'])
@@ -165,8 +156,7 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
     def destroy(self, request, *args, **kwargs):
         """Delete diagram (only if created by current session)."""
         diagram = self.get_object()
-        
-        # Check if current session created this diagram
+
         current_session = request.session.get('diagram_session_id')
         if current_session and diagram.session_id == current_session:
             diagram.delete()
@@ -213,19 +203,16 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
         """Clone diagram for current session."""
         import uuid
         diagram = self.get_object()
-        
-        # Get or create session ID
+
         session_id = request.session.get('diagram_session_id')
         if not session_id:
             session_id = str(uuid.uuid4())
             request.session['diagram_session_id'] = session_id
             request.session.save()
-        
-        # Create clone
+
         new_title = request.data.get('title', f"Copy of {diagram.title}")
         clone = diagram.clone_diagram(session_id, new_title)
-        
-        # Return cloned diagram
+
         serializer = AnonymousDiagramDetailSerializer(clone)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
@@ -238,21 +225,18 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
     def join_session(self, request, pk=None):
         """Join collaboration session."""
         diagram = self.get_object()
-        
-        # Get or create session ID
+
         session_id = request.session.get('diagram_session_id')
         if not session_id:
             session_id = str(uuid.uuid4())
             request.session['diagram_session_id'] = session_id
             request.session.save()
-        
-        # Get nickname from request or generate one
+
         nickname = request.data.get('nickname')
         if not nickname:
             import random
             nickname = f"Guest_{random.randint(1000, 9999)}"
-        
-        # Add to active sessions
+
         diagram.add_active_session(session_id, nickname)
         
         return Response({

@@ -89,22 +89,18 @@ class DiagramVersion(models.Model):
             'modified_relationships': [],
             'removed_relationships': []
         }
-        
-        # Compare classes
+
         prev_classes = {cls['id']: cls for cls in previous_data.get('classes', [])}
         curr_classes = {cls['id']: cls for cls in current_data.get('classes', [])}
-        
-        # Find added classes
+
         for class_id, class_data in curr_classes.items():
             if class_id not in prev_classes:
                 changes['added_classes'].append(class_data)
-        
-        # Find removed classes
+
         for class_id, class_data in prev_classes.items():
             if class_id not in curr_classes:
                 changes['removed_classes'].append(class_data)
-        
-        # Find modified classes
+
         for class_id in set(prev_classes.keys()) & set(curr_classes.keys()):
             if prev_classes[class_id] != curr_classes[class_id]:
                 changes['modified_classes'].append({
@@ -112,22 +108,18 @@ class DiagramVersion(models.Model):
                     'previous': prev_classes[class_id],
                     'current': curr_classes[class_id]
                 })
-        
-        # Compare relationships
+
         prev_rels = {rel['id']: rel for rel in previous_data.get('relationships', [])}
         curr_rels = {rel['id']: rel for rel in current_data.get('relationships', [])}
-        
-        # Find added relationships
+
         for rel_id, rel_data in curr_rels.items():
             if rel_id not in prev_rels:
                 changes['added_relationships'].append(rel_data)
-        
-        # Find removed relationships
+
         for rel_id, rel_data in prev_rels.items():
             if rel_id not in curr_rels:
                 changes['removed_relationships'].append(rel_data)
-        
-        # Find modified relationships
+
         for rel_id in set(prev_rels.keys()) & set(curr_rels.keys()):
             if prev_rels[rel_id] != curr_rels[rel_id]:
                 changes['modified_relationships'].append({
@@ -154,8 +146,7 @@ class DiagramVersion(models.Model):
             new_name=f"{self.diagram.name} - {branch_name}",
             user=user
         )
-        
-        # Set this version as the starting point
+
         new_diagram.diagram_data = self.diagram_data.copy()
         new_diagram.layout_config = self.layout_config.copy()
         new_diagram.save()
@@ -176,8 +167,7 @@ class DiagramVersion(models.Model):
             'target_version': self.version_number if other_version.version_number < self.version_number else other_version.version_number,
             'changes': []
         }
-        
-        # Generate detailed diff
+
         base_classes = {cls['id']: cls for cls in base_data.get('classes', [])}
         target_classes = {cls['id']: cls for cls in target_data.get('classes', [])}
         
@@ -238,15 +228,13 @@ class DiagramVersion(models.Model):
             'total_attributes': 0,
             'total_methods': 0
         }
-        
-        # Analyze classes
+
         for cls in classes:
             class_type = cls.get('class_type', 'CLASS')
             stats['class_types'][class_type] = stats['class_types'].get(class_type, 0) + 1
             stats['total_attributes'] += len(cls.get('attributes', []))
             stats['total_methods'] += len(cls.get('methods', []))
-        
-        # Analyze relationships
+
         for rel in relationships:
             rel_type = rel.get('relationship_type', 'ASSOCIATION')
             stats['relationship_types'][rel_type] = stats['relationship_types'].get(rel_type, 0) + 1

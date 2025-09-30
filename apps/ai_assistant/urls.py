@@ -9,8 +9,7 @@ urlpatterns = [
     path('analysis/<uuid:diagram_id>/', views.get_diagram_analysis, name='diagram_analysis'),
     path('statistics/', views.get_system_statistics, name='system_statistics'),
     path('health/', views.ai_assistant_health, name='health'),
-    
-    # Natural Language Command Processing endpoints
+
     path('process-command/', views.process_uml_command, name='process_uml_command'),
     path('process-command/<uuid:diagram_id>/', views.process_uml_command_for_diagram, name='process_uml_command_for_diagram'),
     path('supported-commands/', views.get_supported_commands, name='get_supported_commands'),

@@ -46,25 +46,21 @@ class CodeGeneratorService:
             GeneratedProject instance with metadata and file paths
         """
         try:
-            # Start generation process
+
             generation_request.start_generation()
             self._log_action(generation_request, 'GENERATION_STARTED', {
                 'generation_type': generation_request.generation_type,
                 'selected_classes_count': len(generation_request.get_selected_uml_classes())
             })
-            
-            # Create temporary workspace
+
             workspace_path = self._create_workspace(generation_request)
-            
-            # Parse UML diagram
+
             generation_request.update_progress(10, {'step': 'Parsing UML diagram'})
             uml_data = self.uml_parser.parse_diagram_structure(generation_request.diagram)
-            
-            # Generate SpringBoot project structure
+
             generation_request.update_progress(20, {'step': 'Creating project structure'})
             project_structure = self._create_project_structure(workspace_path, generation_request)
-            
-            # Generate code components based on type
+
             generated_files = []
             
             if generation_request.generation_type in ['FULL_PROJECT', 'ENTITIES_ONLY']:
@@ -86,24 +82,20 @@ class CodeGeneratorService:
                 generation_request.update_progress(80, {'step': 'Generating controllers'})
                 controller_files = self._generate_controllers(workspace_path, uml_data, generation_request)
                 generated_files.extend(controller_files)
-            
-            # Generate configuration files for full project
+
             if generation_request.generation_type == 'FULL_PROJECT':
                 generation_request.update_progress(90, {'step': 'Generating configuration'})
                 config_files = self._generate_configuration_files(workspace_path, generation_request)
                 generated_files.extend(config_files)
-            
-            # Create project metadata
+
             generation_request.update_progress(95, {'step': 'Creating project package'})
             generated_project = self._create_generated_project(
                 generation_request, workspace_path, generated_files
             )
-            
-            # Package project for download
+
             zip_path = generated_project.create_zip_archive()
             download_url = self._create_download_url(zip_path)
-            
-            # Complete generation
+
             generation_request.complete_generation(
                 workspace_path, len(generated_files), download_url
             )
@@ -117,7 +109,7 @@ class CodeGeneratorService:
             return generated_project
             
         except Exception as e:
-            # Handle generation failure
+
             error_details = {
                 'error_message': str(e),
                 'error_type': type(e).__name__,
@@ -141,8 +133,7 @@ class CodeGeneratorService:
                                 generation_request: GenerationRequest) -> Dict:
         """Create basic SpringBoot project directory structure."""
         config = generation_request.get_springboot_config()
-        
-        # Convert group_id to directory structure
+
         package_path = config['group_id'].replace('.', '/')
         
         directories = [
@@ -204,11 +195,9 @@ class CodeGeneratorService:
     def _create_generated_project(self, generation_request: GenerationRequest,
                                 workspace_path: str, generated_files: List[Dict]) -> GeneratedProject:
         """Create GeneratedProject instance with metadata."""
-        
-        # Calculate project statistics
+
         total_lines = sum(f.get('lines_of_code', 0) for f in generated_files)
-        
-        # Create file structure metadata
+
         file_structure = {
             'tree': self._build_file_tree(generated_files),
             'files': generated_files
@@ -242,8 +231,7 @@ class CodeGeneratorService:
                 if part not in current_node:
                     current_node[part] = {}
                 current_node = current_node[part]
-            
-            # Add file to tree
+
             filename = path_parts[-1]
             current_node[filename] = {
                 'type': 'file',
@@ -256,8 +244,7 @@ class CodeGeneratorService:
     
     def _create_download_url(self, zip_path: str) -> str:
         """Create temporary download URL for generated project."""
-        # In production, this would upload to cloud storage and return public URL
-        # For now, return the local file path
+
         filename = os.path.basename(zip_path)
         return f"/api/code-generation/download/{filename}"
     
@@ -276,8 +263,7 @@ class CodeGeneratorService:
         """Estimate generation complexity and time requirements."""
         classes_count = len(diagram.get_classes())
         relationships_count = len(diagram.get_relationships())
-        
-        # Calculate complexity score
+
         complexity_score = (classes_count * 2) + (relationships_count * 1)
         
         if complexity_score <= 10:

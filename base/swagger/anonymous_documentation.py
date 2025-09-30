@@ -174,8 +174,7 @@ class AnonymousDocumentation:
             404: {"description": f"{resource_name} not found"},
             429: {"description": "Rate limit exceeded"}
         }
-        
-        # Add 201 for POST operations that create resources
+
         if method.upper() == 'POST' and 'create' in action_name.lower():
             responses[201] = response_serializer if response_serializer else {"description": "Resource created successfully"}
             responses.pop(200)  # Remove 200 for creation operations
@@ -230,8 +229,6 @@ class AnonymousDocumentation:
             }
         )
 
-
-# Pre-configured documentation for anonymous UML resources
 UML_DIAGRAMS_SCHEMA = AnonymousDocumentation.get_standard_crud_schema(
     resource_name="UML Diagram",
     tag_name="UML Diagrams"
@@ -265,7 +262,6 @@ WEBSOCKET_SCHEMA = {
     )
 }
 
-# Generic CRUD documentation for general use
 CRUD_DOCUMENTATION = {
     'create': {
         'responses': {
@@ -412,7 +408,7 @@ def get_error_responses(status_codes=None):
     }
     
     if status_codes:
-        # Return only requested status codes
+
         return {int(code): all_responses.get(int(code), {"description": f"HTTP {code} response"}) 
                 for code in status_codes}
     

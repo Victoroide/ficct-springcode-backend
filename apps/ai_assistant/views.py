@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
-
+from base.settings import env
 from .services import AIAssistantService, UMLCommandProcessorService
 from .serializers import (
     AIAssistantQuestionSerializer,
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class AIAssistantRateThrottle(AnonRateThrottle):
     """Custom rate throttle for AI assistant endpoints."""
-    rate = '100/minute'  # 100 requests por minuto para desarrollo
+    rate = env('AI_ASSISTANT_RATE_LIMIT', default='100/minute')
 
 
 @extend_schema(
@@ -61,7 +61,7 @@ def ask_ai_assistant(request):
     and best practices in Spanish.
     """
     try:
-        # Validate request data
+
         serializer = AIAssistantQuestionSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({
@@ -70,18 +70,15 @@ def ask_ai_assistant(request):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         validated_data = serializer.validated_data
-        
-        # Initialize AI assistant service
+
         ai_service = AIAssistantService()
-        
-        # Get contextual help
+
         response_data = ai_service.get_contextual_help(
             user_question=validated_data['question'],
             diagram_id=validated_data.get('diagram_id'),
             context_type=validated_data.get('context_type', 'general')
         )
-        
-        # Validate response format
+
         response_serializer = AIAssistantResponseSerializer(data=response_data)
         if response_serializer.is_valid():
             logger.info(f"AI Assistant question processed: {validated_data['question'][:50]}...")
@@ -136,7 +133,7 @@ def ask_about_diagram(request, diagram_id):
     of the specified diagram.
     """
     try:
-        # Validate request data
+
         serializer = AIAssistantQuestionSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({
@@ -145,25 +142,21 @@ def ask_about_diagram(request, diagram_id):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         validated_data = serializer.validated_data
-        
-        # Initialize AI assistant service
+
         ai_service = AIAssistantService()
-        
-        # Get diagram-specific help
+
         response_data = ai_service.get_contextual_help(
             user_question=validated_data['question'],
             diagram_id=str(diagram_id),
             context_type='diagram'
         )
-        
-        # Check if diagram was found
+
         if 'error' in response_data and 'not found' in response_data.get('answer', '').lower():
             return Response({
                 'error': 'Diagram not found',
                 'message': f'No se encontró el diagrama con ID: {diagram_id}'
             }, status=status.HTTP_404_NOT_FOUND)
-        
-        # Validate and return response
+
         response_serializer = AIAssistantResponseSerializer(data=response_data)
         if response_serializer.is_valid():
             logger.info(f"AI Assistant diagram question processed for {diagram_id}")
@@ -216,17 +209,14 @@ def get_diagram_analysis(request, diagram_id):
     """
     try:
         ai_service = AIAssistantService()
-        
-        # Get diagram analysis
+
         analysis_data = ai_service.get_diagram_analysis(str(diagram_id))
-        
-        # Check if diagram was found
+
         if 'error' in analysis_data:
             return Response({
                 'error': 'Diagram not found'
             }, status=status.HTTP_404_NOT_FOUND)
-        
-        # Validate and return analysis
+
         analysis_serializer = DiagramAnalysisSerializer(data=analysis_data)
         if analysis_serializer.is_valid():
             logger.info(f"Diagram analysis completed for {diagram_id}")
@@ -260,11 +250,9 @@ def get_system_statistics(request):
     """
     try:
         ai_service = AIAssistantService()
-        
-        # Get system statistics
+
         stats_data = ai_service.get_system_statistics()
-        
-        # Validate and return statistics
+
         stats_serializer = SystemStatisticsSerializer(data=stats_data)
         if stats_serializer.is_valid():
             return Response(stats_serializer.validated_data, status=status.HTTP_200_OK)
@@ -302,8 +290,7 @@ def ai_assistant_health(request):
     """Health check for AI assistant service."""
     try:
         from datetime import datetime
-        
-        # Try to initialize the service
+
         ai_service = AIAssistantService()
         
         return Response({
@@ -355,7 +342,7 @@ def process_uml_command(request):
     JSON structures for UML elements like classes, attributes, methods, and relationships.
     """
     try:
-        # Validate request data
+
         serializer = UMLCommandRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({
@@ -364,22 +351,18 @@ def process_uml_command(request):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         validated_data = serializer.validated_data
-        
-        # Initialize command processor service
+
         processor_service = UMLCommandProcessorService()
-        
-        # Process the command
+
         result = processor_service.process_command(
             command=validated_data['command'],
             diagram_id=validated_data.get('diagram_id'),
             current_diagram_data=validated_data.get('current_diagram_data')
         )
-        
-        # Check for errors
+
         if 'error' in result:
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Validate response format
+
         response_serializer = UMLCommandResponseSerializer(data=result)
         if response_serializer.is_valid():
             logger.info(f"UML command processed: {validated_data['command'][:50]}...")
@@ -434,7 +417,7 @@ def process_uml_command_for_diagram(request, diagram_id):
     UML element generation and validation.
     """
     try:
-        # Validate request data
+
         serializer = UMLCommandRequestSerializer(data=request.data)
         if not serializer.is_valid():
             return Response({
@@ -443,29 +426,24 @@ def process_uml_command_for_diagram(request, diagram_id):
             }, status=status.HTTP_400_BAD_REQUEST)
         
         validated_data = serializer.validated_data
-        
-        # Initialize command processor service
+
         processor_service = UMLCommandProcessorService()
-        
-        # Process the command with diagram context
+
         result = processor_service.process_command(
             command=validated_data['command'],
             diagram_id=str(diagram_id),
             current_diagram_data=validated_data.get('current_diagram_data')
         )
-        
-        # Check if diagram was found
+
         if 'error' in result and 'not found' in result.get('error', '').lower():
             return Response({
                 'error': 'Diagram not found',
                 'message': f'No diagram found with ID: {diagram_id}'
             }, status=status.HTTP_404_NOT_FOUND)
-        
-        # Check for other errors
+
         if 'error' in result:
             return Response(result, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Validate and return response
+
         response_serializer = UMLCommandResponseSerializer(data=result)
         if response_serializer.is_valid():
             logger.info(f"UML command processed for diagram {diagram_id}")
@@ -501,11 +479,9 @@ def get_supported_commands(request):
     """
     try:
         processor_service = UMLCommandProcessorService()
-        
-        # Get supported command patterns
+
         commands_data = processor_service.get_supported_commands()
-        
-        # Validate and return
+
         commands_serializer = SupportedCommandsSerializer(data=commands_data)
         if commands_serializer.is_valid():
             return Response(commands_serializer.validated_data, status=status.HTTP_200_OK)

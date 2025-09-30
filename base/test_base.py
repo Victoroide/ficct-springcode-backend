@@ -27,12 +27,10 @@ class BaseTestCase(TestCase):
     @classmethod
     def setUpTestData(cls):
         """Set up test data for the entire test class."""
-        # Generate unique suffix for this test class to avoid email conflicts
-        # Combination of timestamp and random UUID ensures uniqueness
+
         email_suffix = f"{int(datetime.now().timestamp())}{uuid.uuid4().hex[:4]}"
         class_suffix = uuid.uuid4().hex[:4]
-        
-        # Make emails unique across test runs and test classes
+
         test_email = f'testuser_{email_suffix}_{class_suffix}@ficct-enterprise.com'
         admin_email = f'admin_{email_suffix}_{class_suffix}@ficct-enterprise.com'
         inactive_email = f'inactive_{email_suffix}_{class_suffix}@ficct-enterprise.com'
@@ -71,18 +69,16 @@ class BaseTestCase(TestCase):
     
     def setUp(self):
         """Set up test environment for each test method."""
-        # Force complete authentication state reset for ALL tests
+
         self.client = APIClient()
         self.client.logout()
         self.client.credentials()  # Clear all headers
         self.client.force_authenticate(user=None)  # Explicit unauthenticated state
-        
-        # Clear Django session state
+
         from django.test import Client
         if hasattr(self, '_pre_setup'):
             self._pre_setup()
-        
-        # Ensure clean client state
+
         self.client._credentials = {}
         self.client._force_user = None
     
@@ -115,8 +111,7 @@ class BaseTestCase(TestCase):
     def create_test_users(self, count=3):
         """Create multiple test users for testing purposes."""
         users = []
-        # Generate unique suffix for these test users
-        # Combination of timestamp and random UUID ensures uniqueness
+
         email_suffix = f"{int(datetime.now().timestamp())}{uuid.uuid4().hex[:4]}"
         batch_suffix = uuid.uuid4().hex[:4]
         
@@ -140,12 +135,10 @@ class BaseAPITestCase(APITestCase):
     @classmethod
     def setUpTestData(cls):
         """Set up test data for the entire test class."""
-        # Generate unique suffix for this test class to avoid email conflicts
-        # Combination of timestamp and random UUID ensures uniqueness
+
         email_suffix = f"{int(datetime.now().timestamp())}{uuid.uuid4().hex[:4]}"
         class_suffix = uuid.uuid4().hex[:4]
-        
-        # Make emails unique across test runs and test classes
+
         test_email = f'apitest_{email_suffix}_{class_suffix}@ficct-enterprise.com'
         admin_email = f'apiadmin_{email_suffix}_{class_suffix}@ficct-enterprise.com'
         
@@ -258,9 +251,7 @@ class AuthenticationTestMixin:
         """Test behavior with expired JWT token."""
         if not hasattr(self, 'url'):
             self.skipTest("URL not defined in test class")
-        
-        # This would require manually creating an expired token
-        # Implementation depends on specific JWT configuration
+
         pass
 
 
@@ -274,13 +265,11 @@ class PermissionTestMixin:
         
         if not self.requires_staff:
             self.skipTest("Endpoint does not require staff permissions")
-        
-        # Test with regular user
+
         self.authenticate_user(self.test_user)
         response = self.client.get(self.url)
         self.assert_forbidden(response)
-        
-        # Test with staff user
+
         self.authenticate_user(self.admin_user)
         response = self.client.get(self.url)
         self.assertNotEqual(response.status_code, status.HTTP_403_FORBIDDEN)
@@ -396,8 +385,7 @@ class EnterpriseTestCase(BaseAPITestCase, AuthenticationTestMixin, PermissionTes
     def assertResponseError(self, response, expected_status=status.HTTP_400_BAD_REQUEST):
         """Assert error response with validation."""
         self.assertEqual(response.status_code, expected_status)
-        
-        # Ensure error response has proper structure
+
         if response.status_code == status.HTTP_400_BAD_REQUEST:
             try:
                 data = response.json()

@@ -38,18 +38,16 @@ class EnterpriseTransactionMixin:
     def log_transaction_event(self, action, instance=None, details=None):
         """Log transaction events for audit purposes."""
         try:
-            # Extraer información del modelo si se proporciona una instancia
+
             resource_type = None
             resource_id = None
             
             if instance:
                 resource_type = instance.__class__.__name__
                 resource_id = getattr(instance, 'id', None) or getattr(instance, 'pk', None)
-            
-            # Preparar detalles
+
             audit_details = details or {}
-            
-            # Registrar la acción
+
             AuditService.log_user_action(
                 user=self.request.user,
                 action=action,
@@ -71,11 +69,9 @@ class EnterpriseTransactionMixin:
         try:
             serializer = self.get_serializer(data=request.data)
             serializer.is_valid(raise_exception=True)
-            
-            # Perform create operation
+
             instance = serializer.save()
-            
-            # Log successful creation
+
             self.log_transaction_event(
                 "CREATE_SUCCESS",
                 instance=instance,
@@ -131,7 +127,7 @@ class EnterpriseTransactionMixin:
         instance = self.get_object()
         
         try:
-            # Store original values for audit
+
             original_values = {}
             for field in request.data.keys():
                 if hasattr(instance, field):
@@ -143,11 +139,9 @@ class EnterpriseTransactionMixin:
                 partial=partial
             )
             serializer.is_valid(raise_exception=True)
-            
-            # Perform update operation
+
             updated_instance = serializer.save()
-            
-            # Log successful update
+
             self.log_transaction_event(
                 "UPDATE_SUCCESS",
                 instance=updated_instance,
@@ -220,7 +214,7 @@ class EnterpriseSoftDeleteMixin:
         instance = self.get_object()
         
         try:
-            # Check if already soft deleted
+
             if hasattr(instance, self.soft_delete_field):
                 current_status = getattr(instance, self.soft_delete_field)
                 if current_status == self.soft_delete_value:
@@ -228,22 +222,18 @@ class EnterpriseSoftDeleteMixin:
                         {'error': 'Resource is already deleted'},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-            
-            # Perform soft delete
+
             if hasattr(instance, self.soft_delete_field):
                 setattr(instance, self.soft_delete_field, self.soft_delete_value)
-            
-            # Set deletion timestamp if field exists
+
             if hasattr(instance, 'deleted_at'):
                 instance.deleted_at = timezone.now()
-            
-            # Set deleted_by if field exists
+
             if hasattr(instance, 'deleted_by'):
                 instance.deleted_by = request.user
             
             instance.save()
-            
-            # Log successful deletion
+
             audit_service = AuditService()
             audit_service.log_user_action(
                 user=request.user,
@@ -261,8 +251,7 @@ class EnterpriseSoftDeleteMixin:
             
         except Exception as e:
             logger.error(f"Error in {self.__class__.__name__} soft delete: {str(e)}")
-            
-            # Log deletion error
+
             try:
                 audit_service = AuditService()
                 audit_service.log_user_action(
@@ -305,12 +294,10 @@ class EnterpriseViewSetMixin(EnterpriseTransactionMixin, EnterpriseSoftDeleteMix
         Excludes soft-deleted records by default unless explicitly included.
         """
         queryset = super().get_queryset()
-        
-        # Handle schema generation
+
         if getattr(self, 'swagger_fake_view', False):
             return queryset.none()
-        
-        # Filter out soft-deleted records by default
+
         if hasattr(queryset.model, self.soft_delete_field):
             exclude_filter = {self.soft_delete_field: self.soft_delete_value}
             queryset = queryset.exclude(**exclude_filter)
@@ -324,12 +311,10 @@ class EnterpriseViewSetMixin(EnterpriseTransactionMixin, EnterpriseSoftDeleteMix
         Automatically assigns current user to created_by field if available.
         """
         save_kwargs = {}
-        
-        # Set created_by if field exists
+
         if hasattr(serializer.Meta.model, 'created_by'):
             save_kwargs['created_by'] = self.request.user
-        
-        # Set owner if field exists and not provided
+
         if (hasattr(serializer.Meta.model, 'owner') and 
             'owner' not in serializer.validated_data):
             save_kwargs['owner'] = self.request.user
@@ -343,12 +328,10 @@ class EnterpriseViewSetMixin(EnterpriseTransactionMixin, EnterpriseSoftDeleteMix
         Automatically tracks last modified user and timestamp.
         """
         save_kwargs = {}
-        
-        # Set updated_by if field exists
+
         if hasattr(serializer.Meta.model, 'updated_by'):
             save_kwargs['updated_by'] = self.request.user
-        
-        # Set updated_at if field exists (though Django should handle this)
+
         if hasattr(serializer.Meta.model, 'updated_at'):
             save_kwargs['updated_at'] = timezone.now()
         

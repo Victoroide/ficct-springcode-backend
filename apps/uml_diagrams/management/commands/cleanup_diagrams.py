@@ -62,8 +62,7 @@ class Command(BaseCommand):
                         f'Successfully deleted {count} diagrams older than {days} days'
                     )
                 )
-        
-        # Show current stats
+
         total_diagrams = UMLDiagram.objects.count()
         today = timezone.now().date()
         diagrams_today = UMLDiagram.objects.filter(created_at__date=today).count()
@@ -71,8 +70,7 @@ class Command(BaseCommand):
         self.stdout.write(f'\nCurrent statistics:')
         self.stdout.write(f'  Total diagrams: {total_diagrams}')
         self.stdout.write(f'  Created today: {diagrams_today}')
-        
-        # Show storage optimization tip
+
         if not dry_run and count > 0:
             self.stdout.write(
                 self.style.SUCCESS(

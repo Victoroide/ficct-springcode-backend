@@ -50,8 +50,7 @@ class UMLParserService:
             'packages': self._extract_packages(diagram_data.get('classes', [])),
             'springboot_metadata': self._generate_springboot_metadata(diagram_data)
         }
-        
-        # Enhance with relationship mappings
+
         parsed_structure['relationship_mappings'] = self._create_relationship_mappings(
             parsed_structure['classes'], parsed_structure['relationships']
         )
@@ -224,21 +223,18 @@ class UMLParserService:
         annotations = []
         attr_name = attr_data.get('name', '').lower()
         attr_type = attr_data.get('type', '')
-        
-        # JPA annotations
+
         if attr_name == 'id':
             annotations.extend(['@Id', '@GeneratedValue(strategy = GenerationType.IDENTITY)'])
         
         if attr_data.get('is_final'):
             annotations.append('@Column(nullable = false)')
-        
-        # Validation annotations
+
         if 'string' in attr_type.lower() and attr_name not in ['id']:
             annotations.append('@NotBlank')
         elif attr_type.lower() in ['integer', 'long', 'double', 'float'] and attr_name not in ['id']:
             annotations.append('@NotNull')
-        
-        # Timestamp annotations
+
         if attr_name in ['created_at', 'createdat', 'created_date']:
             annotations.append('@CreationTimestamp')
         elif attr_name in ['updated_at', 'updatedat', 'modified_date', 'last_modified']:
@@ -268,8 +264,7 @@ class UMLParserService:
         rel_type = rel_data.get('relationship_type', '')
         source_multiplicity = rel_data.get('source_multiplicity', '1')
         target_multiplicity = rel_data.get('target_multiplicity', '1')
-        
-        # Determine JPA relationship type
+
         if self._is_one_to_one(source_multiplicity, target_multiplicity):
             jpa_type = 'OneToOne'
         elif self._is_one_to_many(source_multiplicity, target_multiplicity):
@@ -329,8 +324,7 @@ class UMLParserService:
         
         if 'email' in attr_data.get('name', '').lower():
             rules.append({'type': 'Email', 'message': 'Must be valid email'})
-        
-        # Extract length constraints
+
         length_match = re.search(r'length\s*:\s*(\d+)', documentation)
         if length_match:
             max_length = int(length_match.group(1))
@@ -370,16 +364,13 @@ class UMLParserService:
         
         if self._has_security_requirements(diagram_data):
             dependencies.append('spring-boot-starter-security')
-        
-        # Add database dependencies
+
         dependencies.extend(['h2', 'postgresql'])
-        
-        # Add utility dependencies
+
         dependencies.extend(['lombok', 'springdoc-openapi-starter-webmvc-ui'])
         
         return dependencies
-    
-    # Utility methods
+
     
     def _to_snake_case(self, text: str) -> str:
         """Convert text to snake_case."""

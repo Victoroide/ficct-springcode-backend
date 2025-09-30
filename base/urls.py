@@ -10,7 +10,6 @@ from rest_framework.response import Response
 from drf_spectacular.utils import extend_schema
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
-# Import API schema view
 from .api_schema import api_schema_view
 
 
@@ -63,13 +62,10 @@ def api_info(request):
     """API information endpoint."""
     return api_schema_view(request)
 
-
-# Admin site configuration
 admin.site.site_header = 'UML Collaborative Tool Admin'
 admin.site.site_title = 'UML Tool'
 admin.site.index_title = 'UML Tool Management'
 
-# Static file serving
 import os
 
 def serve_static_file(request, filename):
@@ -88,13 +84,11 @@ urlpatterns = [
     path('api/', api_info, name='api_info'),
     path('api/diagrams/', include('apps.uml_diagrams.urls', namespace='uml_diagrams')),
     path('api/ai-assistant/', include('apps.ai_assistant.urls', namespace='ai_assistant')),
-    
-    # Frontend routes
+
     path('', lambda request: serve_static_file(request, 'index.html'), name='home'),
     path('editor/<uuid:diagram_id>/', lambda request, diagram_id: serve_static_file(request, 'editor.html'), name='editor'),
 ]
 
-# Static files in debug mode
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
@@ -105,7 +99,6 @@ if settings.DEBUG:
             path('__debug__/', include(debug_toolbar.urls)),
         ] + urlpatterns
 
-# Custom error handlers for production
 if not settings.DEBUG:
     def custom_404(request, exception):
         return JsonResponse({
@@ -150,7 +143,6 @@ if settings.DEBUG:
             path('__debug__/', include(debug_toolbar.urls)),
         ] + urlpatterns
 
-# Custom error handlers for production
 if not settings.DEBUG:
     from django.views.defaults import page_not_found, server_error, permission_denied, bad_request
     

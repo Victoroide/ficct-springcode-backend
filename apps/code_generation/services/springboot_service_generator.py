@@ -48,24 +48,19 @@ class SpringBootServiceGenerator:
     def _generate_service_class(self, class_data: Dict, workspace_path: str, 
                                config: Dict, uml_data: Dict) -> Dict:
         """Generate individual service class."""
-        
-        # Prepare template context
+
         context = self._build_service_context(class_data, config, uml_data)
-        
-        # Render service template
+
         service_content = self.template_renderer.render_service_template(context)
-        
-        # Generate file path
+
         package_path = config['group_id'].replace('.', '/') + '/services'
         service_name = class_data['springboot_mapping']['service_name']
         file_path = os.path.join(workspace_path, 'src/main/java', package_path, f"{service_name}.java")
-        
-        # Write service file
+
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(service_content)
-        
-        # Calculate file statistics
+
         lines_count = len(service_content.split('\n'))
         file_size = len(service_content.encode('utf-8'))
         
@@ -127,8 +122,7 @@ class SpringBootServiceGenerator:
             'java.util.List',
             'java.util.Optional'
         ]
-        
-        # Add entity and repository imports
+
         entity_name = class_data['name']
         repository_name = class_data['springboot_mapping']['repository_name']
         
@@ -136,32 +130,27 @@ class SpringBootServiceGenerator:
             f"{config['group_id']}.entities.{entity_name}",
             f"{config['group_id']}.repositories.{repository_name}"
         ])
-        
-        # Add DTO imports
+
         dto_name = class_data['springboot_mapping']['dto_name']
         imports.append(f"{config['group_id']}.dto.{dto_name}")
-        
-        # Add validation imports if needed
+
         if self._has_validation_requirements(class_data):
             imports.extend([
                 'javax.validation.Valid',
                 'javax.validation.constraints.*'
             ])
-        
-        # Add exception imports
+
         imports.extend([
             'java.util.NoSuchElementException',
             'org.springframework.dao.DataIntegrityViolationException'
         ])
-        
-        # Add pagination imports if needed
+
         if self._needs_pagination_support(class_data):
             imports.extend([
                 'org.springframework.data.domain.Page',
                 'org.springframework.data.domain.Pageable'
             ])
-        
-        # Add UUID import if needed
+
         id_type = self._determine_id_type(class_data)
         if id_type == 'UUID':
             imports.append('java.util.UUID')
@@ -219,8 +208,7 @@ class SpringBootServiceGenerator:
                 'implementation': self._generate_delete_implementation(class_data)
             }
         ]
-        
-        # Add pagination method if needed
+
         if self._needs_pagination_support(class_data):
             crud_methods.append({
                 'name': f'get{entity_name}sWithPagination',
@@ -238,8 +226,7 @@ class SpringBootServiceGenerator:
         custom_methods = []
         entity_name = class_data['name']
         dto_name = class_data['springboot_mapping']['dto_name']
-        
-        # Generate finder methods for unique attributes
+
         for attr in class_data['attributes']:
             if self._should_generate_finder_method(attr):
                 attr_name = attr['name']
@@ -255,8 +242,7 @@ class SpringBootServiceGenerator:
         Optional<{entity_name}> entity = {entity_name.lower()}Repository.findBy{attr_name.title()}({attr_name});
         return entity.map(this::convertToDTO);'''
                 })
-        
-        # Generate search methods for string attributes
+
         string_attrs = [attr for attr in class_data['attributes'] 
                        if 'String' in attr['java_type'] and attr['name'].lower() != 'id']
         
@@ -273,8 +259,7 @@ class SpringBootServiceGenerator:
         List<{entity_name}> entities = {entity_name.lower()}Repository.findBy{attr_name.title()}Containing(searchTerm);
         return entities.stream().map(this::convertToDTO).collect(Collectors.toList());'''
             })
-        
-        # Generate status-based methods if applicable
+
         status_attrs = [attr for attr in class_data['attributes'] 
                        if any(status_word in attr['name'].lower() 
                              for status_word in ['status', 'active', 'enabled', 'state'])]
@@ -297,8 +282,7 @@ class SpringBootServiceGenerator:
         """Generate validation methods for business rules."""
         validation_methods = []
         entity_name = class_data['name']
-        
-        # Generate unique constraint validation
+
         unique_attrs = [attr for attr in class_data['attributes']
                        if any(unique_field in attr['name'].lower() 
                              for unique_field in ['email', 'username', 'code', 'reference'])]
@@ -457,7 +441,7 @@ class SpringBootServiceGenerator:
     
     def _needs_pagination_support(self, class_data: Dict) -> bool:
         """Check if entity needs pagination support."""
-        # Enable pagination for entities with multiple searchable fields
+
         searchable_attrs = [attr for attr in class_data['attributes']
                           if 'String' in attr['java_type'] or 
                              any(status in attr['name'].lower() 

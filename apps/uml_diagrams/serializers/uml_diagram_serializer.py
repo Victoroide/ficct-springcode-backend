@@ -19,7 +19,7 @@ class UMLDiagramListSerializer(serializers.ModelSerializer):
             relationships_count = len(obj.get_relationships() or [])
             return classes_count + relationships_count
         except Exception:
-            # Manejo seguro en caso de errores
+
             return 0
 
 

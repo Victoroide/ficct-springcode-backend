@@ -24,19 +24,17 @@ class DiagramAutoCreationService:
             UMLDiagram instance or None if creation fails
         """
         try:
-            # Handle local/temporary IDs
+
             if diagram_id.startswith('local_'):
                 return DiagramAutoCreationService._create_new_diagram(session_id)
-            
-            # Validate UUID format
+
             try:
                 uuid.UUID(diagram_id)
                 valid_uuid = diagram_id
             except ValueError:
-                # Invalid UUID - create new one
+
                 return DiagramAutoCreationService._create_new_diagram(session_id)
-            
-            # Try to get existing diagram or create new one
+
             diagram, created = UMLDiagram.objects.get_or_create(
                 id=valid_uuid,
                 defaults={
@@ -108,9 +106,9 @@ class DiagramAutoCreationService:
             return str(uuid.uuid4())
         
         try:
-            # Validate UUID format
+
             uuid.UUID(diagram_id)
             return diagram_id
         except ValueError:
-            # Generate new UUID for invalid format
+
             return str(uuid.uuid4())

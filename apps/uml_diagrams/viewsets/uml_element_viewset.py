@@ -39,8 +39,7 @@ class UMLElementViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         if getattr(self, 'swagger_fake_view', False):
             return UMLElement.objects.none()
-        
-        # Get base queryset with enterprise filtering
+
         queryset = super().get_queryset()
         
         return queryset.filter(
@@ -84,8 +83,7 @@ class UMLElementViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
             x = request.data.get('x')
             y = request.data.get('y')
             snap_to_grid = request.data.get('snap_to_grid', False)
-            
-            # Validate coordinates
+
             if x is None or y is None:
                 return Response({
                     'error': True,
@@ -93,16 +91,14 @@ class UMLElementViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
                     'message': 'Both x and y coordinates are required',
                     'status_code': 400
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Move element
+
             if hasattr(element, 'move_to'):
                 element.move_to(x, y, snap_to_grid=snap_to_grid)
             else:
                 element.position_x = x
                 element.position_y = y
                 element.save()
-            
-            # Log move action
+
             self.log_transaction_event(
                 "UML_ELEMENT_MOVED",
                 instance=element,
@@ -151,8 +147,7 @@ class UMLElementViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
             width = request.data.get('width')
             height = request.data.get('height')
             maintain_aspect_ratio = request.data.get('maintain_aspect_ratio', False)
-            
-            # Validate dimensions
+
             if width is None or height is None:
                 return Response({
                     'error': True,
@@ -168,16 +163,14 @@ class UMLElementViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
                     'message': 'Minimum dimensions are 10x10 pixels',
                     'status_code': 400
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Resize element
+
             if hasattr(element, 'resize'):
                 element.resize(width, height, maintain_aspect_ratio=maintain_aspect_ratio)
             else:
                 element.width = width
                 element.height = height
                 element.save()
-            
-            # Log resize action
+
             self.log_transaction_event(
                 "UML_ELEMENT_RESIZED",
                 instance=element,
@@ -232,12 +225,10 @@ class UMLElementViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
                     'message': 'Attribute name and type are required',
                     'status_code': 400
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Add attribute to element
+
             if hasattr(element, 'add_attribute'):
                 element.add_attribute(name, attr_type, visibility, default_value)
-            
-            # Log attribute addition
+
             self.log_transaction_event(
                 "UML_ELEMENT_ATTRIBUTE_ADDED",
                 instance=element,
@@ -297,12 +288,10 @@ class UMLElementViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
                     'message': 'Method name is required',
                     'status_code': 400
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Add method to element
+
             if hasattr(element, 'add_method'):
                 element.add_method(name, return_type, visibility, parameters)
-            
-            # Log method addition
+
             self.log_transaction_event(
                 "UML_ELEMENT_METHOD_ADDED",
                 instance=element,

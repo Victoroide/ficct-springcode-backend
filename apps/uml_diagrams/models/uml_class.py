@@ -247,8 +247,7 @@ class UMLClass(models.Model):
             'org.hibernate.annotations.UpdateTimestamp',
             'java.time.LocalDateTime'
         ]
-        
-        # Add type-specific imports
+
         for attr in self.attributes:
             attr_type = attr.get('type', '')
             if 'UUID' in attr_type:

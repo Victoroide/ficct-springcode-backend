@@ -48,24 +48,19 @@ class SpringBootRepositoryGenerator:
     def _generate_repository_interface(self, class_data: Dict, workspace_path: str, 
                                      config: Dict, uml_data: Dict) -> Dict:
         """Generate individual JPA repository interface."""
-        
-        # Prepare template context
+
         context = self._build_repository_context(class_data, config, uml_data)
-        
-        # Render repository template
+
         repository_content = self.template_renderer.render_repository_template(context)
-        
-        # Generate file path
+
         package_path = config['group_id'].replace('.', '/') + '/repositories'
         repository_name = class_data['springboot_mapping']['repository_name']
         file_path = os.path.join(workspace_path, 'src/main/java', package_path, f"{repository_name}.java")
-        
-        # Write repository file
+
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(repository_content)
-        
-        # Calculate file statistics
+
         lines_count = len(repository_content.split('\n'))
         file_size = len(repository_content.encode('utf-8'))
         
@@ -118,28 +113,23 @@ class SpringBootRepositoryGenerator:
             'org.springframework.data.jpa.repository.JpaRepository',
             'org.springframework.stereotype.Repository'
         ]
-        
-        # Add custom query imports if needed
+
         if self._has_custom_queries(class_data):
             imports.extend([
                 'org.springframework.data.jpa.repository.Query',
                 'org.springframework.data.repository.query.Param'
             ])
-        
-        # Add additional imports based on query methods
+
         if self._has_pagination_methods(class_data):
             imports.extend([
                 'org.springframework.data.domain.Page',
                 'org.springframework.data.domain.Pageable'
             ])
-        
-        # Add Optional import for find methods
+
         imports.append('java.util.Optional')
-        
-        # Add List import for collection returns
+
         imports.append('java.util.List')
-        
-        # Add specific type imports
+
         if id_type == 'UUID':
             imports.append('java.util.UUID')
         
@@ -152,12 +142,10 @@ class SpringBootRepositoryGenerator:
         for attr in class_data['attributes']:
             attr_name = attr['name']
             attr_type = attr['java_type']
-            
-            # Skip ID attribute
+
             if attr_name.lower() == 'id':
                 continue
-            
-            # Generate finder methods for specific attributes
+
             if self._should_generate_finder_method(attr):
                 method_name = f"findBy{attr_name.title()}"
                 
@@ -168,8 +156,7 @@ class SpringBootRepositoryGenerator:
                     'query_annotation': None,
                     'description': f"Find {class_data['name']} by {attr_name}"
                 })
-                
-                # Generate exists method
+
                 exists_method_name = f"existsBy{attr_name.title()}"
                 custom_methods.append({
                     'name': exists_method_name,
@@ -178,8 +165,7 @@ class SpringBootRepositoryGenerator:
                     'query_annotation': None,
                     'description': f"Check if {class_data['name']} exists by {attr_name}"
                 })
-                
-                # Generate delete method
+
                 delete_method_name = f"deleteBy{attr_name.title()}"
                 custom_methods.append({
                     'name': delete_method_name,
@@ -194,15 +180,13 @@ class SpringBootRepositoryGenerator:
     def _generate_query_methods(self, class_data: Dict) -> List[Dict]:
         """Generate query methods with JPQL."""
         query_methods = []
-        
-        # Generate search methods for string attributes
+
         string_attrs = [attr for attr in class_data['attributes'] 
                        if 'String' in attr['java_type'] and attr['name'].lower() != 'id']
         
         for attr in string_attrs:
             attr_name = attr['name']
-            
-            # Case-insensitive search
+
             method_name = f"findBy{attr_name.title()}IgnoreCase"
             jpql_query = f"SELECT e FROM {class_data['name']} e WHERE LOWER(e.{attr_name}) = LOWER(?1)"
             
@@ -213,8 +197,7 @@ class SpringBootRepositoryGenerator:
                 'query_annotation': f'@Query("{jpql_query}")',
                 'description': f"Find {class_data['name']} by {attr_name} (case-insensitive)"
             })
-            
-            # Contains search
+
             contains_method_name = f"findBy{attr_name.title()}Containing"
             query_methods.append({
                 'name': contains_method_name,
@@ -223,8 +206,7 @@ class SpringBootRepositoryGenerator:
                 'query_annotation': None,
                 'description': f"Find {class_data['name']} containing {attr_name}"
             })
-        
-        # Generate active/status methods if applicable
+
         status_attrs = [attr for attr in class_data['attributes'] 
                        if any(status_word in attr['name'].lower() 
                              for status_word in ['status', 'active', 'enabled', 'state'])]
@@ -245,8 +227,7 @@ class SpringBootRepositoryGenerator:
     def _generate_native_queries(self, class_data: Dict) -> List[Dict]:
         """Generate native SQL queries for complex operations."""
         native_queries = []
-        
-        # Generate count by status query if applicable
+
         has_status = any('status' in attr['name'].lower() for attr in class_data['attributes'])
         
         if has_status:
@@ -259,13 +240,12 @@ class SpringBootRepositoryGenerator:
                 'query_annotation': f'@Query(value = "SELECT COUNT(*) FROM {table_name} WHERE status = ?1", nativeQuery = true)',
                 'description': f"Count {class_data['name']} by status using native SQL"
             })
-        
-        # Generate bulk update queries
+
         updatable_attrs = [attr for attr in class_data['attributes']
                           if attr['name'].lower() not in ['id', 'created_at', 'created_date']]
         
         if len(updatable_attrs) > 0:
-            # Example bulk update for status
+
             if has_status:
                 table_name = class_data['springboot_mapping']['table_name']
                 
@@ -286,18 +266,15 @@ class SpringBootRepositoryGenerator:
     def _should_generate_finder_method(self, attr: Dict) -> bool:
         """Determine if attribute should have finder methods."""
         attr_name = attr['name'].lower()
-        
-        # Generate for unique identifiers
+
         unique_identifiers = ['email', 'username', 'code', 'reference', 'slug', 'key']
         if any(identifier in attr_name for identifier in unique_identifiers):
             return True
-        
-        # Generate for status/enum fields
+
         status_fields = ['status', 'state', 'type', 'category']
         if any(field in attr_name for field in status_fields):
             return True
-        
-        # Generate for foreign key references (ending with _id)
+
         if attr_name.endswith('_id') or attr_name.endswith('id'):
             return True
         
@@ -305,13 +282,13 @@ class SpringBootRepositoryGenerator:
     
     def _has_custom_queries(self, class_data: Dict) -> bool:
         """Check if entity requires custom JPQL queries."""
-        # Check for string attributes that need search functionality
+
         string_attrs = [attr for attr in class_data['attributes'] if 'String' in attr['java_type']]
         return len(string_attrs) > 1  # More than just basic string fields
     
     def _has_pagination_methods(self, class_data: Dict) -> bool:
         """Check if entity should have pagination support."""
-        # Enable pagination for entities with multiple searchable fields
+
         searchable_attrs = [attr for attr in class_data['attributes']
                           if 'String' in attr['java_type'] or 
                              any(status in attr['name'].lower() 

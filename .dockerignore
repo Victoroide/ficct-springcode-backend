@@ -1,9 +1,8 @@
-# Git
+
 .git
 .gitignore
 README.md
 
-# Python
 __pycache__
 *.pyc
 *.pyo
@@ -24,13 +23,11 @@ coverage.xml
 .mypy_cache
 .dmypy.json
 
-# Django
 *.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
-# Development files
 .venv
 .env.local
 .env.development
@@ -38,14 +35,12 @@ db.sqlite3-journal
 venv/
 ENV/
 
-# IDEs
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
 
-# OS
 .DS_Store
 .DS_Store?
 ._*
@@ -54,33 +49,26 @@ ENV/
 ehthumbs.db
 Thumbs.db
 
-# Documentation
 docs/
 *.md
 
-# Testing
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
 
-# Node modules (if any)
 node_modules/
 npm-debug.log*
 
-# Static files (will be collected during build)
 staticfiles/
 mediafiles/
 
-# Logs
 logs/
 *.log
 
-# Temporary files
 tmp/
 temp/
 
-# Docker
 Dockerfile*
 docker-compose*
 .dockerignore

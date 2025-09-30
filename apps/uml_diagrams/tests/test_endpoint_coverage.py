@@ -26,11 +26,9 @@ class UMLDiagramViewSetTestCase(BaseTestCase):
         """Set up test client and authenticated user."""
         self.client = APIClient()
         self.client.force_authenticate(user=self.test_user)
-        
-        # Create test project
+
         self.project = ProjectFactory(owner=self.test_user)
-        
-        # Create test diagram
+
         self.diagram = UMLDiagram.objects.create(
             name='Test Diagram',
             diagram_type='class',
@@ -116,8 +114,7 @@ class UMLElementViewSetTestCase(BaseTestCase):
         """Set up test client and authenticated user."""
         self.client = APIClient()
         self.client.force_authenticate(user=self.test_user)
-        
-        # Create test project and diagram
+
         self.project = ProjectFactory(owner=self.test_user)
         
         self.diagram = UMLDiagram.objects.create(
@@ -126,8 +123,7 @@ class UMLElementViewSetTestCase(BaseTestCase):
             project=self.project,
             created_by=self.test_user
         )
-        
-        # Create test element
+
         self.element = UMLElement.objects.create(
             diagram=self.diagram,
             element_type='class',
@@ -208,8 +204,7 @@ class UMLRelationshipViewSetTestCase(BaseTestCase):
         """Set up test client and authenticated user."""
         self.client = APIClient()
         self.client.force_authenticate(user=self.test_user)
-        
-        # Create test project and diagram
+
         self.project = ProjectFactory(owner=self.test_user)
         
         self.diagram = UMLDiagram.objects.create(
@@ -218,8 +213,7 @@ class UMLRelationshipViewSetTestCase(BaseTestCase):
             project=self.project,
             created_by=self.test_user
         )
-        
-        # Create test elements
+
         self.source_element = UMLElement.objects.create(
             diagram=self.diagram,
             element_type='class',
@@ -235,8 +229,7 @@ class UMLRelationshipViewSetTestCase(BaseTestCase):
             properties={},
             position={'x': 300, 'y': 300}
         )
-        
-        # Create test relationship
+
         self.relationship = UMLRelationship.objects.create(
             diagram=self.diagram,
             source_element=self.source_element,
@@ -316,8 +309,7 @@ class UMLDiagramsErrorHandlingTestCase(BaseTestCase):
         """Set up test client."""
         self.client = APIClient()
         self.client.force_authenticate(user=self.test_user)
-        
-        # Create test project
+
         self.project = ProjectFactory(owner=self.test_user)
     
     def test_invalid_diagram_type(self):
@@ -334,7 +326,7 @@ class UMLDiagramsErrorHandlingTestCase(BaseTestCase):
     
     def test_missing_required_fields(self):
         """Test creating elements/relationships with missing fields."""
-        # Missing diagram field
+
         data = {
             'element_type': 'class',
             'name': 'TestClass'
@@ -353,7 +345,7 @@ class UMLDiagramsErrorHandlingTestCase(BaseTestCase):
         }
         
         response = self.client.post('/api/v1/diagrams/', data, format='json')
-        # Should handle gracefully
+
         self.assertIn(response.status_code, [400, 201])
 
 

@@ -41,11 +41,10 @@ class SpringBootEntityGenerator:
     
     def _should_generate_entity(self, class_data: Dict) -> bool:
         """Determine if UML class should become JPA entity."""
-        # Skip interfaces and abstract classes without entity stereotype
+
         if class_data['class_type'] in ['INTERFACE']:
             return False
-        
-        # Generate entities for classes with entity indicators
+
         entity_indicators = ['entity', 'model', 'do', 'po']
         class_name_lower = class_data['name'].lower()
         stereotype_lower = class_data.get('stereotype', '').lower()
@@ -57,23 +56,18 @@ class SpringBootEntityGenerator:
     def _generate_entity_class(self, class_data: Dict, workspace_path: str, 
                               config: Dict, relationship_mappings: Dict) -> Dict:
         """Generate individual JPA entity class."""
-        
-        # Prepare template context
+
         context = self._build_entity_context(class_data, config, relationship_mappings)
-        
-        # Render entity template
+
         entity_content = self.template_renderer.render_entity_template(context)
-        
-        # Generate file path
+
         package_path = config['group_id'].replace('.', '/') + '/entities'
         file_path = os.path.join(workspace_path, 'src/main/java', package_path, f"{class_data['name']}.java")
-        
-        # Write entity file
+
         os.makedirs(os.path.dirname(file_path), exist_ok=True)
         with open(file_path, 'w', encoding='utf-8') as f:
             f.write(entity_content)
-        
-        # Calculate file statistics
+
         lines_count = len(entity_content.split('\n'))
         file_size = len(entity_content.encode('utf-8'))
         
@@ -92,8 +86,7 @@ class SpringBootEntityGenerator:
     def _build_entity_context(self, class_data: Dict, config: Dict, 
                              relationship_mappings: Dict) -> Dict:
         """Build template context for entity generation."""
-        
-        # Base entity information
+
         context = {
             'class_name': class_data['name'],
             'package_name': f"{config['group_id']}.entities",
@@ -115,8 +108,7 @@ class SpringBootEntityGenerator:
             'java.util.Objects',
             'java.time.LocalDateTime'
         ]
-        
-        # Add imports based on attributes
+
         for attr in class_data['attributes']:
             java_type = attr['java_type']
             
@@ -130,16 +122,14 @@ class SpringBootEntityGenerator:
                 imports.append('java.util.UUID')
             elif 'List' in java_type or 'Set' in java_type:
                 imports.extend(['java.util.List', 'java.util.Set', 'java.util.ArrayList', 'java.util.HashSet'])
-        
-        # Add relationship imports
+
         relationships = self._get_class_relationships(class_data['id'], relationship_mappings)
         if relationships:
             imports.extend([
                 'javax.persistence.FetchType',
                 'javax.persistence.CascadeType'
             ])
-        
-        # Add validation imports if needed
+
         has_validation = any('@NotNull' in attr.get('annotations', []) or 
                            '@NotBlank' in attr.get('annotations', []) 
                            for attr in class_data['attributes'])
@@ -149,8 +139,7 @@ class SpringBootEntityGenerator:
                 'javax.validation.constraints.*',
                 'org.hibernate.validator.constraints.*'
             ])
-        
-        # Add timestamp annotations
+
         has_timestamps = any(attr['name'].lower() in ['created_at', 'updated_at'] 
                            for attr in class_data['attributes'])
         
@@ -197,8 +186,7 @@ class SpringBootEntityGenerator:
     def _enhance_attribute_annotations(self, attr: Dict) -> List[str]:
         """Enhance attribute annotations with JPA and validation."""
         annotations = attr.get('annotations', []).copy()
-        
-        # Add JPA column annotation if needed
+
         jpa_mapping = attr.get('jpa_mapping', {})
         
         column_props = []
@@ -223,7 +211,7 @@ class SpringBootEntityGenerator:
         
         for rel_key, rel_data in class_relationships.items():
             if rel_data['source_class'] == class_data['name']:
-                # Outgoing relationship
+
                 relationship = {
                     'field_name': rel_data['field_name_source'],
                     'target_class': rel_data['target_class'],
@@ -238,7 +226,7 @@ class SpringBootEntityGenerator:
                 relationships.append(relationship)
             
             elif rel_data['target_class'] == class_data['name'] and rel_data['field_name_target']:
-                # Incoming relationship (bidirectional)
+
                 relationship = {
                     'field_name': rel_data['field_name_target'],
                     'target_class': rel_data['source_class'],
@@ -278,15 +266,13 @@ class SpringBootEntityGenerator:
     def _generate_constructors(self, class_data: Dict) -> List[Dict]:
         """Generate constructor methods for entity."""
         constructors = []
-        
-        # Default constructor
+
         constructors.append({
             'type': 'default',
             'parameters': [],
             'body': '// Default constructor'
         })
-        
-        # Constructor with required fields (non-id attributes)
+
         required_attrs = [attr for attr in class_data['attributes'] 
                          if attr['name'].lower() != 'id' and attr.get('is_final', False)]
         
@@ -314,7 +300,7 @@ class SpringBootEntityGenerator:
         processed_methods = []
         
         for method in methods:
-            # Skip getter/setter methods (they're generated automatically)
+
             if (method['name'].startswith('get') or method['name'].startswith('set') or
                 method['name'].startswith('is')):
                 continue

@@ -56,24 +56,21 @@ def enterprise_exception_handler(exc, context):
     Provides consistent error formatting, audit logging, and
     detailed error information for debugging and client consumption.
     """
-    
-    # Get the standard error response
+
     response = exception_handler(exc, context)
     
     if response is not None:
-        # Extract request information
+
         request = context.get('request')
         view = context.get('view')
-        
-        # Get user information safely
+
         user_info = None
         if request and hasattr(request, 'user') and request.user.is_authenticated:
             user_info = {
                 'user_id': str(request.user.id),
                 'username': request.user.username
             }
-        
-        # Build comprehensive error response
+
         custom_response_data = {
             'error': True,
             'error_code': getattr(exc, 'default_code', 'unknown_error'),
@@ -83,16 +80,13 @@ def enterprise_exception_handler(exc, context):
             'request_id': _generate_request_id(request),
             'details': _get_error_details(exc, response)
         }
-        
-        # Add user context if available
+
         if user_info:
             custom_response_data['user_context'] = user_info
-        
-        # Add view context
+
         if view:
             custom_response_data['resource'] = view.__class__.__name__
-        
-        # Log error for monitoring and debugging
+
         _log_exception(exc, context, custom_response_data)
         
         response.data = custom_response_data
@@ -104,9 +98,9 @@ def _get_error_message(exc, response):
     """Extract appropriate error message from exception."""
     
     if isinstance(exc, ValidationError):
-        # Handle DRF validation errors
+
         if isinstance(response.data, dict):
-            # Extract first error message
+
             for field, errors in response.data.items():
                 if isinstance(errors, list) and errors:
                     return f"Validation error in {field}: {errors[0]}"
@@ -115,7 +109,7 @@ def _get_error_message(exc, response):
             return str(response.data[0])
     
     elif isinstance(exc, DjangoValidationError):
-        # Handle Django validation errors
+
         if hasattr(exc, 'message_dict'):
             messages = []
             for field, errors in exc.message_dict.items():
@@ -135,8 +129,7 @@ def _get_error_message(exc, response):
     
     elif isinstance(exc, MethodNotAllowed):
         return f"Method {getattr(exc, 'method', 'UNKNOWN')} not allowed"
-    
-    # Default message from exception
+
     if hasattr(exc, 'detail'):
         if isinstance(exc.detail, dict):
             return str(exc.detail.get('detail', exc.detail))
@@ -161,8 +154,7 @@ def _get_error_details(exc, response):
     
     elif isinstance(exc, IntegrityError):
         details['constraint_violation'] = str(exc)
-    
-    # Add exception type for debugging
+
     details['exception_type'] = exc.__class__.__name__
     
     return details
@@ -177,12 +169,11 @@ def _get_iso_timestamp():
 def _generate_request_id(request):
     """Generate or extract request ID for tracing."""
     if request:
-        # Try to get existing request ID from headers
+
         request_id = request.META.get('HTTP_X_REQUEST_ID')
         if request_id:
             return request_id
-    
-    # Generate new request ID
+
     import uuid
     return str(uuid.uuid4())[:8]
 
@@ -200,8 +191,7 @@ def _log_exception(exc, context, error_data):
         'request_id': error_data.get('request_id'),
         'message': error_data.get('message'),
     }
-    
-    # Add request context
+
     if request:
         log_data.update({
             'method': request.method,
@@ -209,13 +199,11 @@ def _log_exception(exc, context, error_data):
             'user_agent': request.META.get('HTTP_USER_AGENT', ''),
             'ip_address': _get_client_ip(request)
         })
-    
-    # Add view context
+
     if view:
         log_data['view'] = view.__class__.__name__
         log_data['action'] = getattr(view, 'action', 'unknown')
-    
-    # Determine log level based on status code
+
     if error_data.get('status_code', 500) >= 500:
         logger.error(f"Server error: {exc}", extra=log_data, exc_info=True)
     elif error_data.get('status_code', 400) >= 400:

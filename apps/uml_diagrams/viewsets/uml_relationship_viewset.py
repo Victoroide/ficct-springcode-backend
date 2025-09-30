@@ -142,8 +142,7 @@ class UMLRelationshipViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
             'source_element__diagram',
             'target_element__diagram'
         )
-        
-        # Apply soft delete filter - only show active relationships by default
+
         if self.action != 'list' or self.request.query_params.get('status') != 'DELETED':
             queryset = queryset.exclude(status='DELETED')
         
@@ -165,7 +164,7 @@ class UMLRelationshipViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
         Enhanced creation with audit logging and validation.
         """
         try:
-            # Validate relationship doesn't create cycles or invalid connections
+
             source_element = serializer.validated_data.get('source_element')
             target_element = serializer.validated_data.get('target_element')
             
@@ -190,8 +189,7 @@ class UMLRelationshipViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
                 created_by=self.request.user,
                 updated_by=self.request.user
             )
-            
-            # Audit logging
+
             AuditService.log_user_action(
                 user=self.request.user,
                 action='CREATE',
@@ -222,8 +220,7 @@ class UMLRelationshipViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
             }
             
             relationship = serializer.save(updated_by=self.request.user)
-            
-            # Audit logging
+
             AuditService.log_user_action(
                 user=self.request.user,
                 action='UPDATE',
@@ -246,13 +243,12 @@ class UMLRelationshipViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
         Soft delete implementation with audit logging.
         """
         try:
-            # Soft delete
+
             instance.status = 'DELETED'
             instance.deleted_at = timezone.now()
             instance.updated_by = self.request.user
             instance.save(update_fields=['status', 'deleted_at', 'updated_by'])
-            
-            # Audit logging
+
             AuditService.log_user_action(
                 user=self.request.user,
                 action='DELETE',
@@ -303,8 +299,7 @@ class UMLRelationshipViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
         try:
             relationship = self.get_object()
             path = relationship.calculate_connection_path()
-            
-            # Audit logging for data access
+
             AuditService.log_user_action(
                 user=request.user,
                 action='VIEW',
@@ -354,8 +349,7 @@ class UMLRelationshipViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
         try:
             relationship = self.get_object()
             position = relationship.get_label_position()
-            
-            # Audit logging for data access
+
             AuditService.log_user_action(
                 user=request.user,
                 action='VIEW',
@@ -416,24 +410,20 @@ class UMLRelationshipViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
                 'errors': [],
                 'suggestions': []
             }
-            
-            # Check for circular dependencies
+
             if relationship.relationship_type == 'inheritance':
-                # TODO: Implement inheritance chain validation
+
                 pass
-            
-            # Check for naming consistency
+
             if not relationship.name or len(relationship.name.strip()) < 3:
                 validation_results['suggestions'].append(
                     'Consider providing a more descriptive name for better documentation'
                 )
-            
-            # Check element compatibility
+
             source_type = relationship.source_element.element_type
             target_type = relationship.target_element.element_type
             rel_type = relationship.relationship_type
-            
-            # Basic compatibility checks
+
             incompatible_combinations = [
                 ('use_case', 'class', ['inheritance', 'composition']),
                 ('actor', 'class', ['composition', 'aggregation'])
@@ -444,8 +434,7 @@ class UMLRelationshipViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
                     validation_results['warnings'].append(
                         f'{rel_type.title()} relationship between {src} and {tgt} may not be semantically correct'
                     )
-            
-            # Audit logging
+
             AuditService.log_user_action(
                 user=request.user,
                 action='VALIDATE',

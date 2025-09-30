@@ -77,8 +77,7 @@ class PublicDiagramViewSet(viewsets.ModelViewSet):
                 public_edit_url=uuid,
                 is_public=True
             )
-            
-            # Log public access
+
             AuditService.log_anonymous_action(
                 action_type='PUBLIC_DIAGRAM_ACCESS',
                 resource_type='UMLDiagram',
@@ -101,8 +100,7 @@ class PublicDiagramViewSet(viewsets.ModelViewSet):
         """Retrieve public diagram."""
         diagram = self.get_object()
         serializer = self.get_serializer(diagram)
-        
-        # Add public access metadata
+
         data = serializer.data
         data['public_access'] = {
             'is_public': True,
@@ -117,8 +115,7 @@ class PublicDiagramViewSet(viewsets.ModelViewSet):
         """Update public diagram."""
         partial = kwargs.pop('partial', False)
         diagram = self.get_object()
-        
-        # Validate anti-spam measures
+
         if not self._validate_update_request(request):
             return Response(
                 {'error': 'Update request rejected - potential spam'},
@@ -127,14 +124,12 @@ class PublicDiagramViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(diagram, data=request.data, partial=partial)
         serializer.is_valid(raise_exception=True)
-        
-        # Update diagram
+
         serializer.save(
             last_modified_by=None,  # Anonymous update
             updated_at=timezone.now()
         )
-        
-        # Log public update
+
         AuditService.log_anonymous_action(
             action_type='PUBLIC_DIAGRAM_UPDATE',
             resource_type='UMLDiagram',
@@ -195,8 +190,7 @@ class PublicDiagramViewSet(viewsets.ModelViewSet):
         
         try:
             plantuml_content = diagram.export_to_plantuml()
-            
-            # Log export
+
             AuditService.log_anonymous_action(
                 action_type='PUBLIC_DIAGRAM_EXPORT',
                 resource_type='UMLDiagram',
@@ -231,8 +225,7 @@ class PublicDiagramViewSet(viewsets.ModelViewSet):
     def stats(self, request, uuid=None):
         """Get diagram statistics."""
         diagram = self.get_object()
-        
-        # Calculate diagram statistics
+
         classes_count = len(diagram.get_classes())
         relationships_count = len(diagram.get_relationships())
         
@@ -253,8 +246,7 @@ class PublicDiagramViewSet(viewsets.ModelViewSet):
                 'visibility': diagram.get_visibility_display()
             }
         })
-    
-    # Helper methods
+
     def get_client_ip(self):
         """Get client IP address."""
         x_forwarded_for = self.request.META.get('HTTP_X_FORWARDED_FOR')
@@ -266,13 +258,10 @@ class PublicDiagramViewSet(viewsets.ModelViewSet):
     
     def _validate_update_request(self, request):
         """Validate update request for anti-spam measures."""
-        # Basic validation - can be extended with more sophisticated checks
-        
-        # Check content length
+
         if hasattr(request.data, '__len__') and len(str(request.data)) > 50000:  # 50KB limit
             return False
-        
-        # Check for suspicious patterns
+
         user_agent = request.META.get('HTTP_USER_AGENT', '').lower()
         suspicious_agents = ['bot', 'crawler', 'spider', 'scraper']
         

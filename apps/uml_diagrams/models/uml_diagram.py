@@ -22,20 +22,17 @@ class UMLDiagram(models.Model):
         STATE = 'STATE', 'State Diagram'
         COMPONENT = 'COMPONENT', 'Component Diagram'
         DEPLOYMENT = 'DEPLOYMENT', 'Deployment Diagram'
-    
-    # Primary fields
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=200, default="Untitled Diagram")
     description = models.TextField(blank=True)
-    
-    # Session-based tracking (no users!)
+
     session_id = models.CharField(
         max_length=64, 
         db_index=True,
         help_text="Session ID of the creator/last editor"
     )
-    
-    # Diagram content
+
     diagram_type = models.CharField(
         max_length=15,
         choices=DiagramType.choices,
@@ -49,12 +46,10 @@ class UMLDiagram(models.Model):
         default=dict,
         help_text="Diagram layout and positioning"
     )
-    
-    # Timestamps
+
     created_at = models.DateTimeField(auto_now_add=True)
     last_modified = models.DateTimeField(auto_now=True)
-    
-    # Collaboration tracking
+
     active_sessions = models.JSONField(
         default=list,
         help_text="List of currently active sessions viewing/editing"
@@ -75,7 +70,7 @@ class UMLDiagram(models.Model):
     
     def save(self, *args, **kwargs):
         """Override save to ensure consistency and normalize diagram_type."""
-        # Normalize diagram_type to uppercase
+
         if self.diagram_type:
             self.diagram_type = self.diagram_type.upper()
         super().save(*args, **kwargs)
@@ -85,15 +80,13 @@ class UMLDiagram(models.Model):
         """Normalize diagram_type to handle case-insensitive input."""
         if not diagram_type:
             return cls.DiagramType.CLASS
-        
-        # Convert to uppercase and validate
+
         normalized = diagram_type.upper()
         valid_types = [choice[0] for choice in cls.DiagramType.choices]
         
         if normalized in valid_types:
             return normalized
-        
-        # Handle common aliases
+
         type_aliases = {
             'CLASS': 'CLASS',
             'SEQUENCE': 'SEQUENCE', 
@@ -111,11 +104,10 @@ class UMLDiagram(models.Model):
         """Extract UML classes from diagram data."""
         if not self.content:
             return []
-        
-        # Check both 'classes' (old format) and 'nodes' (React Flow format)
+
         classes = self.content.get('classes', [])
         if not classes:
-            # Extract from React Flow nodes
+
             nodes = self.content.get('nodes', [])
             classes = [
                 {
@@ -135,11 +127,10 @@ class UMLDiagram(models.Model):
         """Extract UML relationships from diagram data."""
         if not self.content:
             return []
-        
-        # Check both 'relationships' (old format) and 'edges' (React Flow format)
+
         relationships = self.content.get('relationships', [])
         if not relationships:
-            # Extract from React Flow edges
+
             edges = self.content.get('edges', [])
             relationships = [
                 {
@@ -182,7 +173,7 @@ class UMLDiagram(models.Model):
         
         if len(classes) < original_count:
             self.content['classes'] = classes
-            # Also remove related relationships
+
             self.remove_relationships_for_class(class_id)
             self.save()
             return True
@@ -213,12 +204,11 @@ class UMLDiagram(models.Model):
     
     def get_element_by_id(self, element_id: str) -> Optional[Dict]:
         """Find diagram element by ID."""
-        # Search in classes
+
         for cls in self.get_classes():
             if cls.get('id') == element_id:
                 return cls
-        
-        # Search in relationships
+
         for rel in self.get_relationships():
             if rel.get('id') == element_id:
                 return rel
@@ -227,11 +217,10 @@ class UMLDiagram(models.Model):
     
     def update_element(self, element_id: str, element_data: Dict) -> bool:
         """Update any diagram element by ID."""
-        # Try updating class first
+
         if self.update_class(element_id, element_data):
             return True
-        
-        # Try updating relationship
+
         relationships = self.get_relationships()
         for i, rel in enumerate(relationships):
             if rel.get('id') == element_id:
@@ -246,14 +235,12 @@ class UMLDiagram(models.Model):
         """Add session to active sessions list."""
         if not isinstance(self.active_sessions, list):
             self.active_sessions = []
-        
-        # Remove existing session if present
+
         self.active_sessions = [
             s for s in self.active_sessions 
             if s.get('session_id') != session_id
         ]
-        
-        # Add new session
+
         self.active_sessions.append({
             'session_id': session_id,
             'nickname': nickname or f"Guest_{session_id[:8]}",
@@ -278,8 +265,7 @@ class UMLDiagram(models.Model):
         """Get count of currently active sessions (filtered by last 10 minutes)."""
         if not isinstance(self.active_sessions, list):
             return 0
-        
-        # Filter sessions active in last 10 minutes
+
         from datetime import timedelta
         cutoff_time = timezone.now() - timedelta(minutes=10)
         
@@ -296,7 +282,7 @@ class UMLDiagram(models.Model):
                     if joined_at >= cutoff_time:
                         active_count += 1
                 except (ValueError, AttributeError):
-                    # If can't parse date, assume it's old and don't count
+
                     pass
         
         return active_count

@@ -113,8 +113,7 @@ class UMLRelationship(models.Model):
         """Generate field name for source class."""
         if self.source_role:
             return self.source_role
-        
-        # Default naming based on relationship type
+
         if self.relationship_type in ['ASSOCIATION', 'AGGREGATION', 'COMPOSITION']:
             if self.target_multiplicity in ['0..*', '1..*', '*']:
                 return f"{self.target_class.name.lower()}s"
@@ -127,8 +126,7 @@ class UMLRelationship(models.Model):
         """Generate field name for target class."""
         if self.target_role:
             return self.target_role
-        
-        # Default naming for bidirectional relationships
+
         if self.target_navigable:
             if self.source_multiplicity in ['0..*', '1..*', '*']:
                 return f"{self.source_class.name.lower()}s"
@@ -145,11 +143,10 @@ class UMLRelationship(models.Model):
         }
         
         if self.relationship_type == 'INHERITANCE':
-            # Handle inheritance relationships
+
             annotations['target'].append('@Inheritance(strategy = InheritanceType.JOINED)')
             return annotations
-        
-        # Determine JPA relationship type
+
         if self.relationship_type in ['ASSOCIATION', 'DEPENDENCY']:
             if self.is_one_to_many():
                 annotations['source'].append('@OneToMany')
@@ -173,8 +170,7 @@ class UMLRelationship(models.Model):
             annotations['source'].append('@OneToMany')
             if self.target_navigable:
                 annotations['target'].append('@ManyToOne')
-        
-        # Add fetch type
+
         fetch_type = self.get_fetch_type()
         if fetch_type != 'LAZY':  # LAZY is default
             for key in annotations:
@@ -235,17 +231,14 @@ class UMLRelationship(models.Model):
         """Validate relationship consistency and best practices."""
         errors = []
         warnings = []
-        
-        # Check for circular inheritance
+
         if self.relationship_type == 'INHERITANCE':
             if self.creates_inheritance_cycle():
                 errors.append("Circular inheritance detected")
-        
-        # Check multiplicity consistency
+
         if self.relationship_type == 'COMPOSITION' and self.is_many_to_many():
             warnings.append("Many-to-many composition is unusual and may indicate design issue")
-        
-        # Check navigability
+
         if not self.source_navigable and not self.target_navigable:
             warnings.append("Non-navigable relationship may be unnecessary")
         
@@ -259,15 +252,13 @@ class UMLRelationship(models.Model):
         """Check if this inheritance relationship creates a cycle."""
         if self.relationship_type != 'INHERITANCE':
             return False
-        
-        # Simple cycle detection - check if target inherits from source
+
         visited = set()
         current = self.target_class
         
         while current and current.id not in visited:
             visited.add(current.id)
-            
-            # Find parent class
+
             parent_rel = UMLRelationship.objects.filter(
                 diagram=self.diagram,
                 relationship_type='INHERITANCE',

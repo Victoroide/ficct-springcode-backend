@@ -25,8 +25,7 @@ class TemplateRenderingService:
             lstrip_blocks=True,
             keep_trailing_newline=True
         )
-        
-        # Add custom filters
+
         env.filters['camel_case'] = self._to_camel_case
         env.filters['pascal_case'] = self._to_pascal_case
         env.filters['snake_case'] = self._to_snake_case
@@ -98,7 +97,7 @@ class TemplateRenderingService:
             template = self.jinja_env.get_template(template_name)
             return template.render(**context)
         except TemplateNotFound:
-            # Fallback to inline template if file not found
+
             return self._get_inline_template(template_name, context)
         except Exception as e:
             raise Exception(f"Error rendering template {template_name}: {str(e)}")
@@ -518,24 +517,20 @@ public class {{ application_name }} {
 server.port={{ server_port }}
 spring.application.name={{ application_name }}
 
-# Database Configuration
 spring.datasource.url={{ database_url }}
 spring.datasource.username={{ database_username }}
 spring.datasource.password={{ database_password }}
 spring.datasource.driver-class-name={{ database_driver }}
 
-# JPA Configuration
 spring.jpa.hibernate.ddl-auto={{ jpa_ddl_auto }}
 spring.jpa.show-sql={{ jpa_show_sql }}
 spring.jpa.properties.hibernate.format_sql=true
 spring.jpa.properties.hibernate.dialect={{ jpa_dialect }}
 
-# Logging Configuration
 logging.level.org.springframework.web={{ log_level_web }}
 logging.level.org.hibernate.SQL={{ log_level_sql }}
 logging.level.org.hibernate.type.descriptor.sql.BasicBinder={{ log_level_sql_params }}
 
-# OpenAPI Documentation
 springdoc.api-docs.path=/api-docs
 springdoc.swagger-ui.path=/swagger-ui.html'''
         
@@ -548,15 +543,11 @@ springdoc.swagger-ui.path=/swagger-ui.html'''
 
 {{ description }}
 
-## Getting Started
-
-### Prerequisites
 
 - Java {{ java_version }} or higher
 - Maven 3.6 or higher
 - {{ database_name }} database
 
-### Installation
 
 1. Clone the repository
 ```bash
@@ -578,13 +569,11 @@ mvn spring-boot:run
 
 The application will start on http://localhost:{{ server_port }}
 
-## API Documentation
 
 Once the application is running, you can access the API documentation at:
 - Swagger UI: http://localhost:{{ server_port }}/swagger-ui.html
 - OpenAPI JSON: http://localhost:{{ server_port }}/api-docs
 
-## Project Structure
 
 ```
 src/
@@ -599,36 +588,30 @@ src/
     └── application.properties  # Configuration
 ```
 
-## Generated Entities
 
 {% for entity in entities %}
 - **{{ entity.name }}**: {{ entity.description }}
 {% endfor %}
 
-## Development
 
 This project was generated from UML diagrams using the FICCT Spring Code platform.
 
-### Building for Production
 
 ```bash
 mvn clean package -Pprod
 ```
 
-### Running Tests
 
 ```bash
 mvn test
 ```
 
-## License
 
 This project is licensed under the MIT License.'''
         
         template = Template(template_str)
         return template.render(**context)
-    
-    # Custom Jinja2 filters
+
     
     def _to_camel_case(self, text: str) -> str:
         """Convert text to camelCase."""

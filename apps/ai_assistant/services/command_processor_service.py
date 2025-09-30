@@ -45,18 +45,15 @@ class UMLCommandProcessorService:
                     'error': 'AI service unavailable. Install OpenAI dependencies.',
                     'suggestion': 'Install openai and tiktoken packages to enable AI command processing.'
                 }
-            
-            # Single OpenAI API call with comprehensive prompt
+
             response = self.openai_service.call_command_processing_api(
                 command=command,
                 current_diagram_data=current_diagram_data
             )
-            
-            # Parse JSON response
+
             try:
                 result = json.loads(response)
-                
-                # Validate that elements array is not empty for successful commands
+
                 if result.get('action') != 'error' and not result.get('elements'):
                     self.logger.warning(f"AI returned empty elements for command: {command[:50]}")
                     result['confidence'] = 0.3

@@ -35,12 +35,10 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
     def setUpTestData(cls):
         """Set up test data for UML diagram tests."""
         super().setUpTestData()
-        
-        # Create workspace and project
+
         cls.workspace = WorkspaceFactory(owner=cls.test_user)
         cls.project = ProjectFactory(workspace=cls.workspace, owner=cls.test_user)
-        
-        # Create UML diagrams
+
         cls.class_diagram = UMLDiagramFactory(
             project=cls.project,
             name='User Management Classes',
@@ -56,8 +54,7 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
             created_by=cls.test_user,
             last_modified_by=cls.test_user
         )
-        
-        # Create other user for permission testing
+
         cls.other_user = EnterpriseUserFactory(email='other@ficct-enterprise.com')
         cls.other_workspace = WorkspaceFactory(owner=cls.other_user)
         cls.other_project = ProjectFactory(workspace=cls.other_workspace, owner=cls.other_user)
@@ -77,8 +74,7 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         
         self.assertIn('results', response_data)
         self.assertTrue(len(response_data['results']) >= 2)
-        
-        # Check diagram data structure
+
         diagram_data = response_data['results'][0]
         self.assertIn('id', diagram_data)
         self.assertIn('name', diagram_data)
@@ -168,8 +164,7 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         response = self.client.delete(self.diagram_detail_url)
         
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        
-        # Verify diagram is deleted
+
         self.assertFalse(
             UMLDiagram.objects.filter(id=self.class_diagram.id).exists()
         )
@@ -180,14 +175,13 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         response_data = response.json()
-        
-        # Should only return CLASS diagrams
+
         for diagram in response_data['results']:
             self.assertEqual(diagram['diagram_type'], 'CLASS')
     
     def test_filter_diagrams_by_status(self):
         """Test filtering diagrams by status."""
-        # Update one diagram to different status
+
         self.sequence_diagram.status = 'APPROVED'
         self.sequence_diagram.save()
         
@@ -195,8 +189,7 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         response_data = response.json()
-        
-        # Should only return APPROVED diagrams
+
         for diagram in response_data['results']:
             self.assertEqual(diagram['status'], 'APPROVED')
     
@@ -206,8 +199,7 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         response_data = response.json()
-        
-        # Should return diagrams with 'User' in name or description
+
         self.assertTrue(len(response_data['results']) >= 1)
         found_user_diagram = any(
             'User' in diagram['name'] or 'User' in diagram.get('description', '')
@@ -221,8 +213,7 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         response_data = response.json()
-        
-        # Should be ordered by name ascending
+
         names = [diagram['name'] for diagram in response_data['results']]
         self.assertEqual(names, sorted(names))
     
@@ -303,14 +294,13 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
     
     def test_unauthorized_access(self):
         """Test unauthorized access to other user's diagrams."""
-        # Create diagram owned by other user
+
         other_diagram = UMLDiagramFactory(
             project=self.other_project,
             created_by=self.other_user,
             last_modified_by=self.other_user
         )
-        
-        # Try to access other user's diagram
+
         other_diagram_url = reverse('uml_diagrams:umldiagram-detail', args=[other_diagram.id])
         response = self.client.get(other_diagram_url)
         
@@ -340,8 +330,7 @@ class UMLElementViewSetTestCase(EnterpriseTestCase):
             created_by=cls.test_user,
             last_modified_by=cls.test_user
         )
-        
-        # Create UML elements
+
         cls.user_class = UMLElementFactory(
             diagram=cls.diagram,
             element_type='class',
@@ -432,8 +421,7 @@ class UMLElementViewSetTestCase(EnterpriseTestCase):
         response = self.client.delete(self.element_detail_url)
         
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        
-        # Verify element is deleted
+
         from apps.uml_diagrams.models import UMLElement
         self.assertFalse(
             UMLElement.objects.filter(id=self.user_class.id).exists()
@@ -445,14 +433,13 @@ class UMLElementViewSetTestCase(EnterpriseTestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         response_data = response.json()
-        
-        # Should only return elements from the specified diagram
+
         for element in response_data['results']:
             self.assertEqual(element['diagram']['id'], str(self.diagram.id))
     
     def test_filter_elements_by_type(self):
         """Test filtering elements by type."""
-        # Create interface element
+
         UMLElementFactory(
             diagram=self.diagram,
             element_type='interface',
@@ -463,8 +450,7 @@ class UMLElementViewSetTestCase(EnterpriseTestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         response_data = response.json()
-        
-        # Should only return class elements
+
         for element in response_data['results']:
             self.assertEqual(element['element_type'], 'class')
 
@@ -485,8 +471,7 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
             created_by=cls.test_user,
             last_modified_by=cls.test_user
         )
-        
-        # Create elements for relationships
+
         cls.user_element = UMLElementFactory(
             diagram=cls.diagram,
             element_type='class',
@@ -498,8 +483,7 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
             element_type='class',
             name='Order'
         )
-        
-        # Create relationship
+
         cls.user_order_relationship = UMLRelationshipFactory(
             diagram=cls.diagram,
             source_element=cls.user_element,
@@ -540,7 +524,7 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
     
     def test_create_relationship(self):
         """Test creating a new UML relationship."""
-        # Create another element
+
         product_element = UMLElementFactory(
             diagram=self.diagram,
             element_type='class',
@@ -590,8 +574,7 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
         response = self.client.delete(self.relationship_detail_url)
         
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        
-        # Verify relationship is deleted
+
         from apps.uml_diagrams.models import UMLRelationship
         self.assertFalse(
             UMLRelationship.objects.filter(id=self.user_order_relationship.id).exists()
@@ -603,14 +586,13 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         response_data = response.json()
-        
-        # Should only return relationships from the specified diagram
+
         for relationship in response_data['results']:
             self.assertEqual(relationship['diagram']['id'], str(self.diagram.id))
     
     def test_filter_relationships_by_type(self):
         """Test filtering relationships by type."""
-        # Create inheritance relationship
+
         UMLRelationshipFactory(
             diagram=self.diagram,
             source_element=self.user_element,
@@ -622,8 +604,7 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         response_data = response.json()
-        
-        # Should only return inheritance relationships
+
         for relationship in response_data['results']:
             self.assertEqual(relationship['relationship_type'], 'inheritance')
     

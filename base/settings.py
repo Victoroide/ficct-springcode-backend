@@ -78,7 +78,6 @@ TEMPLATES = [
 WSGI_APPLICATION = 'base.wsgi.application'
 ASGI_APPLICATION = 'base.asgi.application'
 
-# Handle DATABASE_URL - use default for build time, real URL for runtime
 try:
     database_url = env("DATABASE_URL")
     tmpPostgres = urlparse(database_url)
@@ -98,7 +97,7 @@ try:
         }
     }
 except:
-    # Fallback for build time when DATABASE_URL isn't available
+
     DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
@@ -106,14 +105,12 @@ except:
         }
     }
 
-# Railway-optimized Redis configuration
 REDIS_URL = env('REDIS_URL', default=None)
 
-# Determine if we're in Railway environment
 IS_RAILWAY = env.bool('RAILWAY_ENVIRONMENT', default=False)
 
 if REDIS_URL and IS_RAILWAY:
-    # Railway production with Redis addon
+
     try:
         import redis
         redis_client = redis.Redis.from_url(REDIS_URL)
@@ -136,11 +133,11 @@ if REDIS_URL and IS_RAILWAY:
         logging.warning(f"Railway Redis failed ({e}), using database cache")
         REDIS_AVAILABLE = False
 else:
-    # Local development or Railway without Redis
+
     REDIS_AVAILABLE = False
 
 if not REDIS_AVAILABLE:
-    # Database fallback
+
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
@@ -154,8 +151,6 @@ SESSION_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = 'Lax'
 
-
-# Configure DRF based on Redis availability
 REST_FRAMEWORK = {
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
     'DEFAULT_PERMISSION_CLASSES': [
@@ -165,7 +160,6 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 20,
 }
 
-# Only enable throttling if Redis is available
 if REDIS_AVAILABLE:
     REST_FRAMEWORK.update({
         'DEFAULT_THROTTLE_CLASSES': [
@@ -176,7 +170,7 @@ if REDIS_AVAILABLE:
         },
     })
 else:
-    # No throttling when Redis unavailable
+
     import logging
     logging.warning("Throttling disabled - Redis not available")
 
@@ -402,7 +396,6 @@ SPECTACULAR_SETTINGS = {
     }
 }
 
-# Configure Channel Layers for Railway
 if REDIS_AVAILABLE and REDIS_URL:
     CHANNEL_LAYERS = {
         'default': {
@@ -417,7 +410,7 @@ if REDIS_AVAILABLE and REDIS_URL:
     import logging
     logging.info("Using Redis for WebSocket channels")
 else:
-    # Fallback for environments without Redis
+
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels.layers.InMemoryChannelLayer',
@@ -430,18 +423,16 @@ else:
 
 ASGI_APPLICATION = 'base.asgi.application'
 
-THROTTLE_RATES = {
-    'public_diagram': '30/min',
-    'anon': '100/hour',
-    'user': '1000/hour'
-}
-
-# OpenAI Configuration
 OPENAI_AZURE_API_KEY = env('OPENAI_AZURE_API_KEY', default='')
 OPENAI_AZURE_API_VERSION = env('OPENAI_AZURE_API_VERSION', default='2024-02-15-preview')
 OPENAI_AZURE_API_BASE = env('OPENAI_AZURE_API_BASE', default='')
 
-# AI Assistant Configuration
 AI_ASSISTANT_ENABLED = env.bool('AI_ASSISTANT_ENABLED', default=True)
 AI_ASSISTANT_RATE_LIMIT = env('AI_ASSISTANT_RATE_LIMIT', default='30/hour')
-AI_ASSISTANT_DEFAULT_MODEL = env('AI_ASSISTANT_DEFAULT_MODEL', default='paralex-gpt-4o')
+AI_ASSISTANT_DEFAULT_MODEL = env('AI_ASSISTANT_DEFAULT_MODEL')
+
+THROTTLE_RATES = {
+    'public_diagram': AI_ASSISTANT_RATE_LIMIT,
+    'anon': AI_ASSISTANT_RATE_LIMIT,
+    'user': AI_ASSISTANT_RATE_LIMIT
+}

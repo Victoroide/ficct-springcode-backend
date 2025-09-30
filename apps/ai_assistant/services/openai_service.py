@@ -11,7 +11,7 @@ try:
     from openai import AzureOpenAI
     OPENAI_AVAILABLE = True
 except ImportError:
-    # For development without OpenAI dependencies
+
     OPENAI_AVAILABLE = False
     tiktoken = None
     AzureOpenAI = None
@@ -73,21 +73,19 @@ class OpenAIService():
     @handle_openai_errors
     def call_api(self, messages: List[Dict], temperature: float = 0.7, max_tokens: int = 1000, response_format: str = None) -> str:
         try:
-            # Handle special model configurations
+
             if self.model == "o1-mini":
                 for msg in messages:
                     if msg.get("role") == "system":
                         msg["role"] = "user"
 
-            # Prepare completion parameters
             completion_params = {
                 'model': self.model,
                 'messages': messages,
                 'temperature': temperature,
                 'max_tokens': max_tokens
             }
-            
-            # Add response format if specified (for JSON mode)
+
             if response_format == 'json':
                 completion_params['response_format'] = {'type': 'json_object'}
             
@@ -116,8 +114,7 @@ class OpenAIService():
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": command}
             ]
-            
-            # Use JSON mode for structured output
+
             response = self.call_api(
                 messages=messages,
                 temperature=0.2,  # Very low for consistent JSON generation

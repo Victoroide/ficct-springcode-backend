@@ -48,7 +48,7 @@ def api_schema_view(request):
     
     Returns an overview of all available endpoints in the Anonymous UML Tool API.
     """
-    # Generate base URL (works for both http and https)
+
     base_url = f"{request.scheme}://{request.get_host()}"
     ws_protocol = "wss" if request.scheme == "https" else "ws"
     ws_url = f"{ws_protocol}://{request.get_host()}"

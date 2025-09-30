@@ -63,34 +63,30 @@ class AIAssistantService:
             Dict with answer, suggestions, and related features
         """
         try:
-            # Check if OpenAI is available
+
             if not self.openai_available:
                 return {
                     "answer": "El asistente de IA no está disponible en este momento. Por favor, contacta al administrador del sistema para configurar el servicio OpenAI.",
                     "suggestions": ["Contactar administrador", "Consultar documentación"],
                     "related_features": ["uml_editing", "system_help"]
                 }
-            
-            # Build complete context
+
             diagram_context = ""
             diagram_data = None
             
             if diagram_id:
                 diagram_data = self._get_diagram_data(diagram_id)
                 diagram_context = self._build_diagram_context(diagram_data)
-            
-            # Select appropriate prompt based on context type
+
             prompt = self._select_prompt_template(context_type, user_question, diagram_context)
-            
-            # Call OpenAI API
+
             messages = [
                 {"role": "system", "content": self.system_context},
                 {"role": "user", "content": prompt}
             ]
             
             response = self.openai_service.call_api(messages)
-            
-            # Parse and format response
+
             formatted_response = self._format_response(response, context_type, diagram_data)
             
             self.logger.info(f"AI Assistant responded to question: {user_question[:50]}...")
@@ -135,8 +131,7 @@ class AIAssistantService:
         classes = diagram_data.get('classes', [])
         relationships = diagram_data.get('relationships', [])
         active_sessions = diagram_data.get('active_sessions', [])
-        
-        # Build detailed class information
+
         class_details = []
         for cls in classes:
             if isinstance(cls, dict):
@@ -144,8 +139,7 @@ class AIAssistantService:
                 attributes = cls.get('attributes', [])
                 methods = cls.get('methods', [])
                 is_abstract = cls.get('isAbstract', False)
-                
-                # Format attributes
+
                 attr_list = []
                 for attr in attributes:
                     if isinstance(attr, dict):
@@ -153,8 +147,7 @@ class AIAssistantService:
                         attr_type = attr.get('type', 'unknown')
                         visibility = attr.get('visibility', 'private')
                         attr_list.append(f"{visibility} {attr_name}: {attr_type}")
-                
-                # Format methods
+
                 method_list = []
                 for method in methods:
                     if isinstance(method, dict):
@@ -172,8 +165,7 @@ class AIAssistantService:
                     class_info += f"\n    - Métodos: {', '.join(method_list)}"
                 
                 class_details.append(class_info)
-        
-        # Build relationship information
+
         relationship_details = []
         for rel in relationships:
             if isinstance(rel, dict):
@@ -182,8 +174,7 @@ class AIAssistantService:
                 target = rel.get('target_id', 'Unknown')
                 source_mult = rel.get('source_multiplicity', '1')
                 target_mult = rel.get('target_multiplicity', '1')
-                
-                # Find class names
+
                 source_name = source
                 target_name = target
                 for cls in classes:
@@ -193,16 +184,14 @@ class AIAssistantService:
                         target_name = cls.get('name', cls.get('label', target))
                 
                 relationship_details.append(f"  * {source_name} --[{rel_type}]-> {target_name} ({source_mult}:{target_mult})")
-        
-        # Determine complexity level
+
         complexity = "Simple"
         total_attributes = sum(len(cls.get('attributes', [])) for cls in classes if isinstance(cls, dict))
         if len(classes) > 10 or total_attributes > 30:
             complexity = "Complejo"
         elif len(classes) > 5 or total_attributes > 15:
             complexity = "Moderado"
-        
-        # Build context
+
         context = f"""
         CONTEXTO DEL DIAGRAMA ACTUAL:
         
@@ -260,11 +249,9 @@ class AIAssistantService:
     
     def _format_response(self, ai_response: str, context_type: str, diagram_data: Optional[Dict]) -> Dict:
         """Format AI response into structured output."""
-        
-        # Generate suggestions based on context
+
         suggestions = self._generate_suggestions(context_type, diagram_data)
-        
-        # Generate related features based on context
+
         related_features = self._generate_related_features(context_type, diagram_data)
         
         return {
@@ -361,8 +348,7 @@ class AIAssistantService:
             "collaboration_active": len(diagram_data.get('active_sessions', [])) > 1,
             "recommendations": []
         }
-        
-        # Generate recommendations
+
         if analysis["complexity_score"] < 20:
             analysis["recommendations"].append("Considerar añadir más clases o relaciones")
         if not analysis["springboot_ready"]:

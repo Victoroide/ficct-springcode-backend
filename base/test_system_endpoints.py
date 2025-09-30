@@ -59,13 +59,11 @@ class SystemEndpointsTestCase(APITestCase):
         self.assertEqual(response.data['name'], 'FICCT Enterprise API')
         self.assertEqual(response.data['description'], 'Enterprise SpringBoot Code Generation Platform API')
         self.assertEqual(response.data['version'], '1.0.0')
-        
-        # Check documentation endpoints
+
         self.assertEqual(response.data['documentation'], '/api/docs/')
         self.assertEqual(response.data['swagger'], '/api/schema/swagger-ui/')
         self.assertEqual(response.data['redoc'], '/api/schema/redoc/')
-        
-        # Check endpoint information
+
         expected_endpoints = {
             'authentication': '/api/auth/',
             'registration': '/api/registration/',
@@ -82,8 +80,7 @@ class SystemEndpointsTestCase(APITestCase):
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertIn('application/vnd.oai.openapi', response['Content-Type'])
-        
-        # Check that response contains basic OpenAPI structure (YAML format)
+
         content = response.content.decode('utf-8')
         self.assertIn('openapi:', content)
         self.assertIn('info:', content)
@@ -110,7 +107,7 @@ class SystemEndpointsTestCase(APITestCase):
     @patch('requests.get')
     def test_swagger_assets_cdn_fallback(self, mock_get):
         """Test swagger assets endpoint with CDN fallback."""
-        # Mock successful CDN response
+
         mock_response = Mock()
         mock_response.content = b'mock css content'
         mock_response.raise_for_status.return_value = None
@@ -132,7 +129,7 @@ class SystemEndpointsTestCase(APITestCase):
     @patch('requests.get')
     def test_swagger_assets_cdn_failure(self, mock_get):
         """Test swagger assets endpoint when CDN fails."""
-        # Mock CDN failure
+
         mock_get.side_effect = Exception("CDN Error")
         
         url = reverse('swagger-ui-assets', kwargs={'filename': 'swagger-ui.css'})
@@ -163,14 +160,12 @@ class CustomErrorHandlersTestCase(APITestCase):
     
     def test_403_error_handler(self):
         """Test custom 403 error handler returns JSON response."""
-        # This would need specific setup to trigger 403 - placeholder test
-        # In a real scenario, you'd set up a view that raises 403
+
         pass
     
     def test_400_error_handler(self):
         """Test custom 400 error handler returns JSON response."""
-        # This would need specific setup to trigger 400 - placeholder test
-        # In a real scenario, you'd set up a view that raises 400
+
         pass
 
 
@@ -184,15 +179,13 @@ class AdminEndpointTestCase(BaseTestCase):
     def test_admin_login_page_accessible(self):
         """Test that admin login page is accessible."""
         response = self.client.get('/admin/')
-        
-        # Should redirect to login or show login page
+
         self.assertIn(response.status_code, [200, 302])
     
     def test_admin_login_redirect_unauthenticated(self):
         """Test that admin redirects unauthenticated users."""
         response = self.client.get('/admin/', follow=True)
-        
-        # Should eventually show login page
+
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'login', response.content.lower())
 
@@ -207,8 +200,7 @@ class APIRateLimitingTestCase(APITestCase):
     def test_health_check_no_rate_limit(self):
         """Test that health check endpoint is not rate limited."""
         url = reverse('api_health_check')
-        
-        # Make multiple requests quickly
+
         for _ in range(10):
             response = self.client.get(url)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -216,8 +208,7 @@ class APIRateLimitingTestCase(APITestCase):
     def test_api_info_no_rate_limit(self):
         """Test that API info endpoint is not rate limited."""
         url = reverse('api_info')
-        
-        # Make multiple requests quickly
+
         for _ in range(10):
             response = self.client.get(url)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -236,7 +227,7 @@ class SecurityHeadersTestCase(APITestCase):
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # Add specific security header checks based on your security configuration
+
     
     def test_api_info_security_headers(self):
         """Test that API info includes appropriate security headers."""
@@ -244,7 +235,7 @@ class SecurityHeadersTestCase(APITestCase):
         response = self.client.get(url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        # Add specific security header checks based on your security configuration
+
 
 
 class CORSTestCase(APITestCase):
@@ -258,14 +249,12 @@ class CORSTestCase(APITestCase):
         """Test CORS headers on health check endpoint."""
         url = reverse('api_health_check')
         response = self.client.options(url, HTTP_ORIGIN='http://localhost:3000')
-        
-        # Should handle OPTIONS request for CORS
+
         self.assertIn(response.status_code, [200, 204])
     
     def test_cors_headers_api_info(self):
         """Test CORS headers on API info endpoint."""
         url = reverse('api_info')
         response = self.client.options(url, HTTP_ORIGIN='http://localhost:3000')
-        
-        # Should handle OPTIONS request for CORS
+
         self.assertIn(response.status_code, [200, 204])

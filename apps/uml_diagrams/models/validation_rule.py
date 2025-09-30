@@ -78,18 +78,16 @@ class ValidationRule(models.Model):
     def validate_diagram(self, diagram) -> dict:
         """Validate diagram against this rule."""
         try:
-            # Create validation context
+
             context = {
                 'diagram': diagram,
                 'classes': diagram.get_classes(),
                 'relationships': diagram.get_relationships(),
                 'validation_helpers': self.get_validation_helpers()
             }
-            
-            # Execute validation logic  
+
             exec(self.validation_logic, context)
-            
-            # Get validation result
+
             result = context.get('validation_result', {
                 'is_valid': True,
                 'violations': []
@@ -235,7 +233,6 @@ validation_result = {
 violations = []
 inheritances = [rel for rel in relationships if rel.get('relationship_type') == 'INHERITANCE']
 
-# Simple cycle detection
 class_graph = {}
 for rel in inheritances:
     source = rel.get('source_id')

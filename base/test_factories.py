@@ -62,11 +62,6 @@ class TOTPDeviceFactory(DjangoModelFactory):
     name = factory.Faker('word')
     confirmed = True
 
-
-# UML Diagrams App Factories (Refactored - no project dependency)
-
-
-# UML Diagrams App Factories
 class UMLDiagramFactory(DjangoModelFactory):
     """Factory for UML diagrams."""
     
@@ -143,10 +138,6 @@ class UMLRelationshipFactory(DjangoModelFactory):
     created_at = factory.LazyFunction(timezone.now)
     updated_at = factory.LazyFunction(timezone.now)
 
-
-
-
-# Audit App Factories
 class AuditLogFactory(DjangoModelFactory):
     """Factory for audit logs."""
     
@@ -162,8 +153,6 @@ class AuditLogFactory(DjangoModelFactory):
     user_agent = factory.Faker('user_agent')
     timestamp = factory.LazyFunction(timezone.now)
 
-
-# Security App Factories  
 class SecurityAlertFactory(DjangoModelFactory):
     """Factory for security alerts."""
     

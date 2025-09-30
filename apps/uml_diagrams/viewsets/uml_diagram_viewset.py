@@ -76,13 +76,12 @@ class UMLDiagramViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
         source_diagram = self.get_object()
         
         try:
-            # Extract clone parameters
+
             clone_name = request.data.get('name')
             clone_description = request.data.get('description', f"Cloned from: {source_diagram.name}")
             project_id = request.data.get('project_id')
             include_relationships = request.data.get('include_relationships', True)
-            
-            # Validate required fields
+
             if not clone_name:
                 return Response({
                     'error': True,
@@ -90,8 +89,7 @@ class UMLDiagramViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
                     'message': 'Clone name is required',
                     'status_code': 400
                 }, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Create cloned diagram
+
             cloned_diagram = UMLDiagram.objects.create(
                 name=clone_name,
                 description=clone_description,
@@ -101,8 +99,7 @@ class UMLDiagramViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
                 metadata=source_diagram.metadata.copy() if source_diagram.metadata else {},
                 created_by=request.user
             )
-            
-            # Log cloning action
+
             self.log_transaction_event(
                 f"UML_DIAGRAM_CLONE_SUCCESS",
                 instance=cloned_diagram,
@@ -146,13 +143,11 @@ class UMLDiagramViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
         
         try:
             version_comment = request.data.get('version_comment', 'Version created via API')
-            
-            # Increment version number
+
             new_version = diagram.version_number + 1
             diagram.version_number = new_version
             diagram.save()
-            
-            # Log version creation
+
             self.log_transaction_event(
                 f"UML_DIAGRAM_VERSION_CREATE",
                 instance=diagram,
@@ -200,8 +195,7 @@ class UMLDiagramViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
         
         try:
             export_data = diagram.export_to_plantuml()
-            
-            # Log export action
+
             self.log_transaction_event(
                 f"UML_DIAGRAM_EXPORT_SUCCESS",
                 instance=diagram,
@@ -299,8 +293,7 @@ class UMLDiagramViewSet(EnterpriseViewSetMixin, viewsets.ModelViewSet):
                 'validation_warnings': [],
                 'validation_score': 95
             }
-            
-            # Log validation action
+
             self.log_transaction_event(
                 f"UML_DIAGRAM_VALIDATION",
                 instance=diagram,

@@ -104,8 +104,7 @@ class UMLDiagram(models.Model):
         blank=True,
         related_name='derived_diagrams'
     )
-    
-    # Public access fields
+
     is_public = models.BooleanField(
         default=True,
         help_text="Allow public access without authentication"
@@ -137,23 +136,13 @@ class UMLDiagram(models.Model):
     def save(self, *args, **kwargs):
         """Override save to update version and validation."""
         is_new = self.pk is None
-        
-        # Generate public_edit_url if not exists
+
         if not self.public_edit_url:
             self.public_edit_url = uuid.uuid4()
-        
-        # Temporarily disable version checking during refactoring
-        # if not is_new:
-        #     # Increment version if diagram data changed
-        #     original = UMLDiagram.objects.get(pk=self.pk)
-        #     if original.diagram_data != self.diagram_data:
-        #         self.version_number += 1
+
         
         super().save(*args, **kwargs)
-        
-        # if not is_new:
-        #     # Create version snapshot
-        #     self.create_version_snapshot()
+
     
     def create_version_snapshot(self) -> 'DiagramVersion':
         """Create version snapshot for change tracking."""
@@ -206,7 +195,7 @@ class UMLDiagram(models.Model):
         
         if len(classes) < original_count:
             self.diagram_data['classes'] = classes
-            # Also remove related relationships
+
             self.remove_relationships_for_class(class_id)
             self.save()
             return True
@@ -275,12 +264,11 @@ class UMLDiagram(models.Model):
     
     def get_element_by_id(self, element_id: str) -> Optional[Dict]:
         """Find diagram element by ID."""
-        # Search in classes
+
         for cls in self.get_classes():
             if cls.get('id') == element_id:
                 return cls
-        
-        # Search in relationships
+
         for rel in self.get_relationships():
             if rel.get('id') == element_id:
                 return rel
@@ -289,11 +277,10 @@ class UMLDiagram(models.Model):
     
     def update_element(self, element_id: str, element_data: Dict) -> bool:
         """Update any diagram element by ID."""
-        # Try updating class first
+
         if self.update_class(element_id, element_data):
             return True
-        
-        # Try updating relationship
+
         relationships = self.get_relationships()
         for i, rel in enumerate(relationships):
             if rel.get('id') == element_id:

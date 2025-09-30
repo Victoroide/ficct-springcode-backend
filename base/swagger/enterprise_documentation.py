@@ -137,8 +137,7 @@ class EnterpriseDocumentation:
                 ]
             ),
         }
-        
-        # Add soft delete or hard delete documentation
+
         if include_soft_delete:
             schema_config['destroy'] = extend_schema(
                 summary=f"Delete {resource_name}",
@@ -165,8 +164,7 @@ class EnterpriseDocumentation:
                     403: {"description": "Insufficient permissions for deletion"}
                 }
             )
-        
-        # Add full update documentation if needed
+
         schema_config['update'] = extend_schema(
             summary=f"Full Update {resource_name}",
             description=f"Completely update {resource_lower} information with all fields. Requires all mandatory fields to be provided.",
@@ -215,8 +213,7 @@ class EnterpriseDocumentation:
             403: {"description": "Insufficient permissions"},
             404: {"description": f"{resource_name} not found"}
         }
-        
-        # Add 201 for POST operations that create resources
+
         if method.upper() == 'POST' and 'create' in action_name.lower():
             responses[201] = response_serializer if response_serializer else {"description": "Resource created successfully"}
             responses.pop(200)  # Remove 200 for creation operations
@@ -285,8 +282,6 @@ class EnterpriseDocumentation:
             ]
         )
 
-
-# Pre-configured documentation for common resources
 AUTHENTICATION_SCHEMA = EnterpriseDocumentation.get_standard_crud_schema(
     resource_name="User",
     tag_name="Authentication",
@@ -317,7 +312,6 @@ CODE_GENERATION_SCHEMA = EnterpriseDocumentation.get_standard_crud_schema(
     include_soft_delete=True
 )
 
-# Generic CRUD documentation for general use
 CRUD_DOCUMENTATION = {
     'create': {
         'responses': {
@@ -478,7 +472,7 @@ def get_error_responses(status_codes=None):
     }
     
     if status_codes:
-        # Return only requested status codes
+
         return {int(code): all_responses.get(int(code), {"description": f"HTTP {code} response"}) 
                 for code in status_codes}
     

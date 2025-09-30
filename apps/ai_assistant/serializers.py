@@ -27,9 +27,9 @@ class AIAssistantQuestionSerializer(serializers.Serializer):
     
     def validate_question(self, value):
         """Validate question content."""
-        if not value or len(value.strip()) < 5:
+        if not value or len(value.strip()) < 1:
             raise serializers.ValidationError(
-                "La pregunta debe tener al menos 5 caracteres."
+                "La pregunta debe ser al menos de un caracter."
             )
         return value.strip()
 
