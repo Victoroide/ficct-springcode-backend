@@ -371,7 +371,8 @@ def process_uml_command(request):
         # Process the command
         result = processor_service.process_command(
             command=validated_data['command'],
-            diagram_id=validated_data.get('diagram_id')
+            diagram_id=validated_data.get('diagram_id'),
+            current_diagram_data=validated_data.get('current_diagram_data')
         )
         
         # Check for errors
@@ -449,7 +450,8 @@ def process_uml_command_for_diagram(request, diagram_id):
         # Process the command with diagram context
         result = processor_service.process_command(
             command=validated_data['command'],
-            diagram_id=str(diagram_id)
+            diagram_id=str(diagram_id),
+            current_diagram_data=validated_data.get('current_diagram_data')
         )
         
         # Check if diagram was found

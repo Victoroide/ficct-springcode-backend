@@ -65,7 +65,7 @@ class UMLCommandProcessorService:
             'protected': 'protected', 'protegido': 'protected', 'protégé': 'protected'
         }
     
-    def process_command(self, command: str, diagram_id: Optional[str] = None) -> Dict:
+    def process_command(self, command: str, diagram_id: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
         """
         Process natural language command and generate UML elements.
         
@@ -77,20 +77,22 @@ class UMLCommandProcessorService:
             Dict with processed elements and metadata
         """
         try:
-            # Get diagram context if provided
+            # Get diagram context from current_diagram_data or database
             diagram_context = None
-            if diagram_id:
+            if current_diagram_data:
+                diagram_context = self._build_context_from_data(current_diagram_data)
+            elif diagram_id:
                 diagram_context = self._get_diagram_context(diagram_id)
             
             # First try pattern-based processing for common commands
-            pattern_result = self._process_with_patterns(command, diagram_context)
+            pattern_result = self._process_with_patterns(command, diagram_context, current_diagram_data)
             if pattern_result and pattern_result.get('confidence', 0) > 0.7:
                 self.logger.info(f"Pattern-based processing successful for: {command[:50]}...")
                 return pattern_result
             
             # Fall back to AI processing for complex commands
             if self.openai_available:
-                ai_result = self._process_with_ai(command, diagram_context)
+                ai_result = self._process_with_ai(command, diagram_context, current_diagram_data)
                 self.logger.info(f"AI processing completed for: {command[:50]}...")
                 return ai_result
             else:
@@ -109,6 +111,43 @@ class UMLCommandProcessorService:
                 'error': f'Error processing command: {str(e)}',
                 'suggestion': 'Please try rephrasing your command or contact support'
             }
+    
+    def _build_context_from_data(self, diagram_data: Dict) -> str:
+        """Build context string from current diagram data."""
+        try:
+            nodes = diagram_data.get('nodes', [])
+            edges = diagram_data.get('edges', [])
+            
+            context_parts = []
+            context_parts.append("DIAGRAMA ACTUAL:")
+            
+            if nodes:
+                class_names = [node.get('data', {}).get('label', 'Unknown') for node in nodes]
+                context_parts.append(f"CLASES EXISTENTES: {', '.join(class_names)}")
+                
+                for node in nodes:
+                    node_data = node.get('data', {})
+                    class_name = node_data.get('label', 'Unknown')
+                    node_id = node.get('id', '')
+                    attributes = node_data.get('attributes', [])
+                    methods = node_data.get('methods', [])
+                    
+                    context_parts.append(f"\\nCLASE: {class_name} (ID: {node_id})")
+                    if attributes:
+                        attr_names = [attr.get('name', 'unknown') for attr in attributes]
+                        context_parts.append(f"  Atributos: {', '.join(attr_names)}")
+                    if methods:
+                        method_names = [method.get('name', 'unknown') for method in methods]
+                        context_parts.append(f"  Métodos: {', '.join(method_names)}")
+            
+            if edges:
+                context_parts.append(f"\\nRELACIONES EXISTENTES: {len(edges)} relaciones definidas")
+            
+            return '\\n'.join(context_parts)
+            
+        except Exception as e:
+            self.logger.error(f"Error building context from data: {e}")
+            return ""
     
     def _get_diagram_context(self, diagram_id: str) -> Optional[str]:
         """Get current diagram context for AI processing."""
@@ -148,7 +187,7 @@ class UMLCommandProcessorService:
             self.logger.error(f"Error getting diagram context: {e}")
             return None
     
-    def _process_with_patterns(self, command: str, diagram_context: Optional[str] = None) -> Optional[Dict]:
+    def _process_with_patterns(self, command: str, diagram_context: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Optional[Dict]:
         """Process command using regex patterns for common operations."""
         command_lower = command.lower().strip()
         
@@ -157,21 +196,28 @@ class UMLCommandProcessorService:
             match = re.search(pattern, command, re.IGNORECASE)
             if match:
                 class_name = match.group(1)
-                return self._create_class_element(class_name, command, diagram_context)
+                return self._create_class_element(class_name, command, diagram_context, current_diagram_data)
         
-        # Try to match add attribute patterns  
+        # NEW: Handle generic "add attributes to ClassName" pattern
+        generic_attr_pattern = r'(?:agrega|añade|add)\s+(?:atributos?|attributes?)\s+(?:a|to)\s+([A-Z][a-zA-Z0-9_]*)'
+        match = re.search(generic_attr_pattern, command, re.IGNORECASE)
+        if match:
+            class_name = match.group(1)
+            return self._create_generic_attributes(class_name, command, diagram_context, current_diagram_data)
+        
+        # Try to match add attribute patterns with specific attributes
         for pattern in self.command_patterns['add_attribute']:
             match = re.search(pattern, command, re.IGNORECASE)
             if match:
                 attributes_text = match.group(1)
-                return self._create_attribute_elements(attributes_text, command, diagram_context)
+                return self._create_attribute_elements(attributes_text, command, diagram_context, current_diagram_data)
         
         # Try to match add method patterns
         for pattern in self.command_patterns['add_method']:
             match = re.search(pattern, command, re.IGNORECASE)
             if match:
                 method_name = match.group(1)
-                return self._create_method_element(method_name, command, diagram_context)
+                return self._create_method_element(method_name, command, diagram_context, current_diagram_data)
         
         # Try to match relationship patterns
         for pattern in self.command_patterns['create_relationship']:
@@ -179,11 +225,98 @@ class UMLCommandProcessorService:
             if match:
                 source_class = match.group(1)
                 target_class = match.group(2)
-                return self._create_relationship_element(source_class, target_class, command, diagram_context)
+                return self._create_relationship_element(source_class, target_class, command, diagram_context, current_diagram_data)
         
         return None
     
-    def _process_with_ai(self, command: str, diagram_context: Optional[str] = None) -> Dict:
+    def _create_generic_attributes(self, class_name: str, original_command: str, diagram_context: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
+        """Create generic attributes when no specific attributes are mentioned."""
+        # Find the target class in current diagram data
+        target_node_id = None
+        if current_diagram_data:
+            nodes = current_diagram_data.get('nodes', [])
+            for node in nodes:
+                node_label = node.get('data', {}).get('label', '')
+                if node_label.lower() == class_name.lower():
+                    target_node_id = node.get('id')
+                    break
+        
+        # Generate contextual attributes based on class name
+        suggested_attributes = self._suggest_attributes_for_class(class_name)
+        
+        attributes = []
+        for attr_name, attr_type in suggested_attributes:
+            attribute = {
+                "id": f"attr-{str(uuid.uuid4())[:8]}",
+                "name": attr_name,
+                "type": attr_type,
+                "visibility": "private"
+            }
+            attributes.append(attribute)
+        
+        return {
+            "action": "add_attribute",
+            "elements": [{
+                "type": "attribute_update",
+                "data": {
+                    "target_class_id": target_node_id,
+                    "target_class_name": class_name,
+                    "attributes": attributes
+                }
+            }],
+            "confidence": 0.75,
+            "interpretation": f"Generando {len(attributes)} atributos sugeridos para la clase '{class_name}': {', '.join([a['name'] for a in attributes])}"
+        }
+    
+    def _suggest_attributes_for_class(self, class_name: str) -> List[Tuple[str, str]]:
+        """Suggest relevant attributes based on class name."""
+        class_lower = class_name.lower()
+        
+        # Common attribute patterns
+        common_attrs = [
+            ("id", "Long"),
+            ("name", "String"),
+            ("description", "String"),
+            ("createdAt", "Date"),
+            ("updatedAt", "Date")
+        ]
+        
+        # Domain-specific attributes
+        if any(keyword in class_lower for keyword in ['user', 'usuario', 'person', 'persona']):
+            return [
+                ("id", "Long"),
+                ("username", "String"),
+                ("email", "String"),
+                ("password", "String"),
+                ("createdAt", "Date")
+            ]
+        elif any(keyword in class_lower for keyword in ['product', 'producto', 'item', 'articulo']):
+            return [
+                ("id", "Long"),
+                ("name", "String"),
+                ("price", "Double"),
+                ("stock", "Integer"),
+                ("description", "String")
+            ]
+        elif any(keyword in class_lower for keyword in ['order', 'pedido', 'compra']):
+            return [
+                ("id", "Long"),
+                ("orderNumber", "String"),
+                ("total", "Double"),
+                ("status", "String"),
+                ("orderDate", "Date")
+            ]
+        elif any(keyword in class_lower for keyword in ['category', 'categoria']):
+            return [
+                ("id", "Long"),
+                ("name", "String"),
+                ("description", "String")
+            ]
+        else:
+            # Generic attributes for unknown classes
+            return common_attrs[:3]  # id, name, description
+    
+    def _process_with_ai(self, command: str, diagram_context: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
         """Process command using AI for complex natural language understanding."""
         try:
             response = self.openai_service.call_command_processing_api(command, diagram_context)
@@ -212,7 +345,7 @@ class UMLCommandProcessorService:
                 'suggestion': 'Please try again or use simpler command patterns'
             }
     
-    def _create_class_element(self, class_name: str, original_command: str, diagram_context: Optional[str] = None) -> Dict:
+    def _create_class_element(self, class_name: str, original_command: str, diagram_context: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
         """Create a class element from pattern matching."""
         element_id = f"class-{str(uuid.uuid4())[:8]}"
         
@@ -243,7 +376,7 @@ class UMLCommandProcessorService:
             "interpretation": f"Crear clase '{class_name}' basado en el comando: '{original_command}'"
         }
     
-    def _create_attribute_elements(self, attributes_text: str, original_command: str, diagram_context: Optional[str] = None) -> Dict:
+    def _create_attribute_elements(self, attributes_text: str, original_command: str, diagram_context: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
         """Create attribute elements from text parsing."""
         attributes = []
         
@@ -284,7 +417,7 @@ class UMLCommandProcessorService:
             "interpretation": f"Añadir {len(attributes)} atributos basado en: '{original_command}'"
         }
     
-    def _create_method_element(self, method_name: str, original_command: str, diagram_context: Optional[str] = None) -> Dict:
+    def _create_method_element(self, method_name: str, original_command: str, diagram_context: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
         """Create method element from pattern matching."""
         method = {
             "id": f"method-{str(uuid.uuid4())[:8]}",
@@ -306,7 +439,7 @@ class UMLCommandProcessorService:
             "interpretation": f"Añadir método '{method_name}' basado en: '{original_command}'"
         }
     
-    def _create_relationship_element(self, source_class: str, target_class: str, original_command: str, diagram_context: Optional[str] = None) -> Dict:
+    def _create_relationship_element(self, source_class: str, target_class: str, original_command: str, diagram_context: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
         """Create relationship element from pattern matching."""
         
         # Determine relationship type from command

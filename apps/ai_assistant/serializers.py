@@ -104,6 +104,11 @@ class UMLCommandRequestSerializer(serializers.Serializer):
         allow_null=True,
         help_text="Optional UUID of diagram for context"
     )
+    current_diagram_data = serializers.JSONField(
+        required=False,
+        allow_null=True,
+        help_text="Current diagram state with nodes and edges"
+    )
     
     def validate_command(self, value):
         """Validate command content."""
