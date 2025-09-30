@@ -7,12 +7,15 @@ from rest_framework.throttling import AnonRateThrottle
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 
-from .services import AIAssistantService
+from .services import AIAssistantService, UMLCommandProcessorService
 from .serializers import (
     AIAssistantQuestionSerializer,
     AIAssistantResponseSerializer,
     DiagramAnalysisSerializer,
-    SystemStatisticsSerializer
+    SystemStatisticsSerializer,
+    UMLCommandRequestSerializer,
+    UMLCommandResponseSerializer,
+    SupportedCommandsSerializer
 )
 
 
@@ -316,3 +319,202 @@ def ai_assistant_health(request):
             'service': 'AI Assistant',
             'error': str(e)
         }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+
+@extend_schema(
+    tags=['AI Assistant'],
+    summary='Process Natural Language UML Command',
+    description='Convert natural language commands into UML diagram elements using AI processing',
+    request=UMLCommandRequestSerializer,
+    responses={
+        200: UMLCommandResponseSerializer,
+        400: {
+            'type': 'object',
+            'properties': {
+                'error': {'type': 'string'},
+                'details': {'type': 'object'}
+            }
+        },
+        429: {
+            'type': 'object',
+            'properties': {
+                'error': {'type': 'string'},
+                'message': {'type': 'string'}
+            }
+        }
+    }
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([AIAssistantRateThrottle])
+def process_uml_command(request):
+    """
+    Process natural language commands for UML diagram generation.
+    
+    Accepts commands in multiple languages and generates React Flow compatible
+    JSON structures for UML elements like classes, attributes, methods, and relationships.
+    """
+    try:
+        # Validate request data
+        serializer = UMLCommandRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({
+                'error': 'Invalid request data',
+                'details': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        validated_data = serializer.validated_data
+        
+        # Initialize command processor service
+        processor_service = UMLCommandProcessorService()
+        
+        # Process the command
+        result = processor_service.process_command(
+            command=validated_data['command'],
+            diagram_id=validated_data.get('diagram_id')
+        )
+        
+        # Check for errors
+        if 'error' in result:
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate response format
+        response_serializer = UMLCommandResponseSerializer(data=result)
+        if response_serializer.is_valid():
+            logger.info(f"UML command processed: {validated_data['command'][:50]}...")
+            return Response(response_serializer.validated_data, status=status.HTTP_200_OK)
+        else:
+            logger.error(f"Invalid response format: {response_serializer.errors}")
+            return Response({
+                'error': 'Invalid response format',
+                'details': response_serializer.errors
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    except Exception as e:
+        logger.error(f"Error in process_uml_command: {e}")
+        return Response({
+            'error': 'Internal server error',
+            'message': 'Error processing UML command. Please try again.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(
+    tags=['AI Assistant'],
+    summary='Process UML Command for Specific Diagram',
+    description='Process natural language command with context from a specific diagram',
+    request=UMLCommandRequestSerializer,
+    responses={
+        200: UMLCommandResponseSerializer,
+        404: {
+            'type': 'object',
+            'properties': {
+                'error': {'type': 'string'},
+                'message': {'type': 'string'}
+            }
+        }
+    },
+    parameters=[
+        OpenApiParameter(
+            name='diagram_id',
+            type=OpenApiTypes.UUID,
+            location=OpenApiParameter.PATH,
+            description='UUID of the diagram to use for context'
+        )
+    ]
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([AIAssistantRateThrottle])
+def process_uml_command_for_diagram(request, diagram_id):
+    """
+    Process natural language command with diagram context.
+    
+    Uses the specified diagram's current state to provide context-aware
+    UML element generation and validation.
+    """
+    try:
+        # Validate request data
+        serializer = UMLCommandRequestSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response({
+                'error': 'Invalid request data',
+                'details': serializer.errors
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        validated_data = serializer.validated_data
+        
+        # Initialize command processor service
+        processor_service = UMLCommandProcessorService()
+        
+        # Process the command with diagram context
+        result = processor_service.process_command(
+            command=validated_data['command'],
+            diagram_id=str(diagram_id)
+        )
+        
+        # Check if diagram was found
+        if 'error' in result and 'not found' in result.get('error', '').lower():
+            return Response({
+                'error': 'Diagram not found',
+                'message': f'No diagram found with ID: {diagram_id}'
+            }, status=status.HTTP_404_NOT_FOUND)
+        
+        # Check for other errors
+        if 'error' in result:
+            return Response(result, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Validate and return response
+        response_serializer = UMLCommandResponseSerializer(data=result)
+        if response_serializer.is_valid():
+            logger.info(f"UML command processed for diagram {diagram_id}")
+            return Response(response_serializer.validated_data, status=status.HTTP_200_OK)
+        else:
+            logger.error(f"Invalid response format: {response_serializer.errors}")
+            return Response({
+                'error': 'Invalid response format'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    except Exception as e:
+        logger.error(f"Error in process_uml_command_for_diagram: {e}")
+        return Response({
+            'error': 'Internal server error',
+            'message': 'Error processing UML command for diagram.'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(
+    tags=['AI Assistant'],
+    summary='Get Supported Command Patterns',
+    description='Get documentation of supported natural language command patterns for UML generation',
+    responses={200: SupportedCommandsSerializer}
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_supported_commands(request):
+    """
+    Get documentation of supported command patterns.
+    
+    Returns examples of supported natural language commands for
+    creating UML elements in multiple languages.
+    """
+    try:
+        processor_service = UMLCommandProcessorService()
+        
+        # Get supported command patterns
+        commands_data = processor_service.get_supported_commands()
+        
+        # Validate and return
+        commands_serializer = SupportedCommandsSerializer(data=commands_data)
+        if commands_serializer.is_valid():
+            return Response(commands_serializer.validated_data, status=status.HTTP_200_OK)
+        else:
+            logger.error(f"Invalid commands format: {commands_serializer.errors}")
+            return Response({
+                'error': 'Invalid commands format'
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    except Exception as e:
+        logger.error(f"Error in get_supported_commands: {e}")
+        return Response({
+            'error': 'Internal server error'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
