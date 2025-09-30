@@ -40,7 +40,6 @@ class ConnectionThrottleMiddleware(BaseMiddleware):
     async def __call__(self, scope, receive, send):
         client_ip = self.get_client_ip(scope)
         logger = logging.getLogger('django')
-        logger.info(f"WebSocket connection from {client_ip} - throttling bypassed for collaborative access")
         
         return await super().__call__(scope, receive, send)
     

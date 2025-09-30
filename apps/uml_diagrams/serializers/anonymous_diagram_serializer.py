@@ -111,8 +111,6 @@ class AnonymousDiagramCreateSerializer(serializers.ModelSerializer):
             **validated_data
         )
         
-        logger.info(f"Created diagram with ID: {diagram.id} from serializer")
-        
         return diagram
     
     def get_or_create_session_id(self, request) -> str:

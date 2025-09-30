@@ -81,17 +81,14 @@ def ask_ai_assistant(request):
 
         response_serializer = AIAssistantResponseSerializer(data=response_data)
         if response_serializer.is_valid():
-            logger.info(f"AI Assistant question processed: {validated_data['question'][:50]}...")
             return Response(response_serializer.validated_data, status=status.HTTP_200_OK)
         else:
-            logger.error(f"Invalid response format: {response_serializer.errors}")
             return Response({
                 'error': 'Invalid response format',
                 'details': response_serializer.errors
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
     except Exception as e:
-        logger.error(f"Error in ask_ai_assistant: {e}")
         return Response({
             'error': 'Internal server error',
             'message': 'Lo siento, hubo un error procesando tu pregunta. Por favor, inténtalo de nuevo.'
@@ -159,16 +156,13 @@ def ask_about_diagram(request, diagram_id):
 
         response_serializer = AIAssistantResponseSerializer(data=response_data)
         if response_serializer.is_valid():
-            logger.info(f"AI Assistant diagram question processed for {diagram_id}")
             return Response(response_serializer.validated_data, status=status.HTTP_200_OK)
         else:
-            logger.error(f"Invalid response format: {response_serializer.errors}")
             return Response({
                 'error': 'Invalid response format'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
     except Exception as e:
-        logger.error(f"Error in ask_about_diagram: {e}")
         return Response({
             'error': 'Internal server error',
             'message': 'Error procesando la pregunta sobre el diagrama.'
@@ -219,16 +213,13 @@ def get_diagram_analysis(request, diagram_id):
 
         analysis_serializer = DiagramAnalysisSerializer(data=analysis_data)
         if analysis_serializer.is_valid():
-            logger.info(f"Diagram analysis completed for {diagram_id}")
             return Response(analysis_serializer.validated_data, status=status.HTTP_200_OK)
         else:
-            logger.error(f"Invalid analysis format: {analysis_serializer.errors}")
             return Response({
                 'error': 'Invalid analysis format'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
     except Exception as e:
-        logger.error(f"Error in get_diagram_analysis: {e}")
         return Response({
             'error': 'Internal server error'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -257,13 +248,11 @@ def get_system_statistics(request):
         if stats_serializer.is_valid():
             return Response(stats_serializer.validated_data, status=status.HTTP_200_OK)
         else:
-            logger.error(f"Invalid statistics format: {stats_serializer.errors}")
             return Response({
                 'error': 'Invalid statistics format'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
     except Exception as e:
-        logger.error(f"Error in get_system_statistics: {e}")
         return Response({
             'error': 'Internal server error'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -300,7 +289,6 @@ def ai_assistant_health(request):
         }, status=status.HTTP_200_OK)
         
     except Exception as e:
-        logger.error(f"AI Assistant health check failed: {e}")
         return Response({
             'status': 'unhealthy',
             'service': 'AI Assistant',
@@ -365,17 +353,14 @@ def process_uml_command(request):
 
         response_serializer = UMLCommandResponseSerializer(data=result)
         if response_serializer.is_valid():
-            logger.info(f"UML command processed: {validated_data['command'][:50]}...")
             return Response(response_serializer.validated_data, status=status.HTTP_200_OK)
         else:
-            logger.error(f"Invalid response format: {response_serializer.errors}")
             return Response({
                 'error': 'Invalid response format',
                 'details': response_serializer.errors
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
     except Exception as e:
-        logger.error(f"Error in process_uml_command: {e}")
         return Response({
             'error': 'Internal server error',
             'message': 'Error processing UML command. Please try again.'
@@ -446,16 +431,13 @@ def process_uml_command_for_diagram(request, diagram_id):
 
         response_serializer = UMLCommandResponseSerializer(data=result)
         if response_serializer.is_valid():
-            logger.info(f"UML command processed for diagram {diagram_id}")
             return Response(response_serializer.validated_data, status=status.HTTP_200_OK)
         else:
-            logger.error(f"Invalid response format: {response_serializer.errors}")
             return Response({
                 'error': 'Invalid response format'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
     except Exception as e:
-        logger.error(f"Error in process_uml_command_for_diagram: {e}")
         return Response({
             'error': 'Internal server error',
             'message': 'Error processing UML command for diagram.'
@@ -486,13 +468,11 @@ def get_supported_commands(request):
         if commands_serializer.is_valid():
             return Response(commands_serializer.validated_data, status=status.HTTP_200_OK)
         else:
-            logger.error(f"Invalid commands format: {commands_serializer.errors}")
             return Response({
                 'error': 'Invalid commands format'
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
     except Exception as e:
-        logger.error(f"Error in get_supported_commands: {e}")
         return Response({
             'error': 'Internal server error'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

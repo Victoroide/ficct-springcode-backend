@@ -72,8 +72,6 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
         logger = logging.getLogger('django')
 
         instance = serializer.save()
-
-        logger.info(f"UML Diagram created with ID: {instance.id}")
         
         return instance
     
@@ -83,46 +81,34 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
         import json
         logger = logging.getLogger('django')
         
-        logger.info(f"🔄 PATCH request received for diagram {kwargs.get('pk')}: {request.data}")
-        
         diagram = self.get_object()
 
         if 'content' in request.data:
             try:
 
                 if isinstance(request.data['content'], dict):
-                    logger.info("📊 Content is JSON dictionary")
                     diagram.content = json.dumps(request.data['content'])
                 elif isinstance(request.data['content'], str):
-                    logger.info("📝 Content is string")
                     try:
 
                         json.loads(request.data['content'])
-                        logger.info("✅ Content is valid JSON string")
                     except json.JSONDecodeError:
-                        logger.info("⚠️ Content is not JSON, storing as raw string")
+                        pass
 
                     diagram.content = request.data['content']
                 else:
-
-                    logger.info(f"⚠️ Content is unexpected type: {type(request.data['content'])}")
                     diagram.content = str(request.data['content'])
-                    
-                logger.info(f"💾 Content field handled manually, length: {len(str(diagram.content))}")
             except Exception as e:
-                logger.error(f"❌ Error processing content field: {e}")
-
+                pass
         if 'title' in request.data:
             original_title = diagram.title
             diagram.title = request.data['title']
-            logger.info(f"📝 Title updated: '{original_title}' -> '{diagram.title}'")
 
         serializer = self.get_serializer(diagram, data=request.data, partial=True)
         
         if serializer.is_valid():
 
             instance = serializer.save()
-            logger.info(f"💾 Diagram auto-saved: {instance.id}")
 
             from django.utils import timezone
             instance.last_modified = timezone.now()
@@ -130,7 +116,6 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
             
             return Response(serializer.data, status=status.HTTP_200_OK)
         else:
-            logger.error(f"❌ Auto-save validation failed: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def update(self, request, *args, **kwargs):
@@ -143,10 +128,8 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
         
         if serializer.is_valid():
             instance = serializer.save()
-            logger.info(f"💾 Diagram fully updated: {instance.id}")
             return Response(serializer.data)
         else:
-            logger.error(f"❌ Update validation failed: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def perform_update(self, serializer):

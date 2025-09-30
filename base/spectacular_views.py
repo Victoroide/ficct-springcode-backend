@@ -54,7 +54,7 @@ def serve_swagger_file(request, filename):
                 content_type, _ = mimetypes.guess_type(filename)
                 return HttpResponse(content, content_type=content_type or 'application/octet-stream')
         except Exception as e:
-            logger.warning(f"Failed to serve local file {filename}: {e}")
+            pass
 
     try:
         cdn_url = swagger_files[filename]
@@ -72,7 +72,6 @@ def serve_swagger_file(request, filename):
         )
         
     except Exception as e:
-        logger.error(f"Failed to fetch {filename} from CDN: {e}")
         raise Http404(f"Could not load {filename}")
 
 
