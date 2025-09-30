@@ -111,13 +111,50 @@ class UMLDiagram(models.Model):
         """Extract UML classes from diagram data."""
         if not self.content:
             return []
-        return self.content.get('classes', [])
+        
+        # Check both 'classes' (old format) and 'nodes' (React Flow format)
+        classes = self.content.get('classes', [])
+        if not classes:
+            # Extract from React Flow nodes
+            nodes = self.content.get('nodes', [])
+            classes = [
+                {
+                    'id': node.get('id'),
+                    'name': node.get('data', {}).get('label', 'Unknown'),
+                    'label': node.get('data', {}).get('label', 'Unknown'),
+                    'attributes': node.get('data', {}).get('attributes', []),
+                    'methods': node.get('data', {}).get('methods', []),
+                    'nodeType': node.get('data', {}).get('nodeType', 'class'),
+                    'isAbstract': node.get('data', {}).get('isAbstract', False)
+                }
+                for node in nodes if node.get('type') == 'class'
+            ]
+        return classes
     
     def get_relationships(self) -> List[Dict]:
         """Extract UML relationships from diagram data."""
         if not self.content:
             return []
-        return self.content.get('relationships', [])
+        
+        # Check both 'relationships' (old format) and 'edges' (React Flow format)
+        relationships = self.content.get('relationships', [])
+        if not relationships:
+            # Extract from React Flow edges
+            edges = self.content.get('edges', [])
+            relationships = [
+                {
+                    'id': edge.get('id'),
+                    'source_id': edge.get('source'),
+                    'target_id': edge.get('target'),
+                    'type': edge.get('data', {}).get('relationshipType', 'ASSOCIATION'),
+                    'relationship_type': edge.get('data', {}).get('relationshipType', 'ASSOCIATION'),
+                    'source_multiplicity': edge.get('data', {}).get('sourceMultiplicity', '1'),
+                    'target_multiplicity': edge.get('data', {}).get('targetMultiplicity', '1'),
+                    'label': edge.get('data', {}).get('label', '')
+                }
+                for edge in edges if edge.get('type') == 'umlRelationship'
+            ]
+        return relationships
     
     def add_class(self, class_data: Dict) -> None:
         """Add UML class to diagram."""
@@ -238,10 +275,31 @@ class UMLDiagram(models.Model):
         self.save(update_fields=['active_sessions'])
     
     def get_active_sessions_count(self) -> int:
-        """Get count of currently active sessions."""
+        """Get count of currently active sessions (filtered by last 10 minutes)."""
         if not isinstance(self.active_sessions, list):
             return 0
-        return len(self.active_sessions)
+        
+        # Filter sessions active in last 10 minutes
+        from datetime import timedelta
+        cutoff_time = timezone.now() - timedelta(minutes=10)
+        
+        active_count = 0
+        for session in self.active_sessions:
+            joined_at_str = session.get('joined_at')
+            if joined_at_str:
+                try:
+                    from dateutil import parser
+                    joined_at = parser.parse(joined_at_str)
+                    if joined_at.tzinfo is None:
+                        joined_at = timezone.make_aware(joined_at)
+                    
+                    if joined_at >= cutoff_time:
+                        active_count += 1
+                except (ValueError, AttributeError):
+                    # If can't parse date, assume it's old and don't count
+                    pass
+        
+        return active_count
     
     def clone_diagram(self, new_session_id: str, new_title: str = None) -> 'UMLDiagram':
         """Create copy of diagram for new session."""

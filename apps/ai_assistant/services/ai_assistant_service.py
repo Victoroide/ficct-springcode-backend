@@ -33,25 +33,20 @@ class AIAssistantService:
         - Group chat for team collaboration
         - Professional UML 2.5+ standards support
         - Anonymous session-based access (no user registration required)
-        - PlantUML export functionality
-        - Multiple diagram types: Class, Sequence, Use Case, Activity, State, Component, Deployment
         
         HELP USERS WITH:
         - UML diagram design best practices
         - Class relationships (Association, Aggregation, Composition, Inheritance)
         - SpringBoot code generation options
         - System features and functionality
-        - Troubleshooting diagram issues
-        - PlantUML syntax and export
         - Collaborative features usage
         - Anonymous session management
         
         RESPONSE GUIDELINES:
-        - Always provide practical, actionable advice in Spanish
-        - Focus on UML best practices and system-specific guidance
-        - Include step-by-step instructions when helpful
-        - Suggest related system features when appropriate
+        - Always provide practical, actionable advice in the user's language
         - Be concise but comprehensive in explanations
+
+        IMPORTANT: You ALWAYS need to be concise and comprehensive in your responses. Make your responses longer ONLY when the user asks for it.
         """
     
     def get_contextual_help(self, user_question: str, diagram_id: Optional[str] = None, 
@@ -141,37 +136,93 @@ class AIAssistantService:
         relationships = diagram_data.get('relationships', [])
         active_sessions = diagram_data.get('active_sessions', [])
         
-        # Extract class names for context
-        class_names = []
+        # Build detailed class information
+        class_details = []
         for cls in classes:
             if isinstance(cls, dict):
-                class_names.append(cls.get('name', cls.get('label', 'Unknown')))
+                class_name = cls.get('name', cls.get('label', 'Unknown'))
+                attributes = cls.get('attributes', [])
+                methods = cls.get('methods', [])
+                is_abstract = cls.get('isAbstract', False)
+                
+                # Format attributes
+                attr_list = []
+                for attr in attributes:
+                    if isinstance(attr, dict):
+                        attr_name = attr.get('name', 'unknown')
+                        attr_type = attr.get('type', 'unknown')
+                        visibility = attr.get('visibility', 'private')
+                        attr_list.append(f"{visibility} {attr_name}: {attr_type}")
+                
+                # Format methods
+                method_list = []
+                for method in methods:
+                    if isinstance(method, dict):
+                        method_name = method.get('name', 'unknown')
+                        return_type = method.get('returnType', 'void')
+                        visibility = method.get('visibility', 'public')
+                        method_list.append(f"{visibility} {method_name}(): {return_type}")
+                
+                class_info = f"  * {class_name}"
+                if is_abstract:
+                    class_info += " (abstracta)"
+                if attr_list:
+                    class_info += f"\n    - Atributos: {', '.join(attr_list)}"
+                if method_list:
+                    class_info += f"\n    - Métodos: {', '.join(method_list)}"
+                
+                class_details.append(class_info)
         
-        # Analyze relationships
-        relationship_types = []
+        # Build relationship information
+        relationship_details = []
         for rel in relationships:
             if isinstance(rel, dict):
                 rel_type = rel.get('type', rel.get('relationship_type', 'Unknown'))
-                relationship_types.append(rel_type)
+                source = rel.get('source_id', 'Unknown')
+                target = rel.get('target_id', 'Unknown')
+                source_mult = rel.get('source_multiplicity', '1')
+                target_mult = rel.get('target_multiplicity', '1')
+                
+                # Find class names
+                source_name = source
+                target_name = target
+                for cls in classes:
+                    if cls.get('id') == source:
+                        source_name = cls.get('name', cls.get('label', source))
+                    if cls.get('id') == target:
+                        target_name = cls.get('name', cls.get('label', target))
+                
+                relationship_details.append(f"  * {source_name} --[{rel_type}]-> {target_name} ({source_mult}:{target_mult})")
         
         # Determine complexity level
         complexity = "Simple"
-        if len(classes) > 10:
-            complexity = "Complex"
-        elif len(classes) > 5:
-            complexity = "Medium"
+        total_attributes = sum(len(cls.get('attributes', [])) for cls in classes if isinstance(cls, dict))
+        if len(classes) > 10 or total_attributes > 30:
+            complexity = "Complejo"
+        elif len(classes) > 5 or total_attributes > 15:
+            complexity = "Moderado"
         
+        # Build context
         context = f"""
-        CURRENT DIAGRAM CONTEXT:
+        CONTEXTO DEL DIAGRAMA ACTUAL:
+        
+        INFORMACIÓN GENERAL:
         - Título: "{diagram_data.get('title', 'Sin título')}"
         - Tipo: {diagram_data.get('diagram_type', 'CLASS')}
-        - Clases: {len(classes)} clases definidas
-        - Relaciones: {len(relationships)} relaciones
-        - Nombres de clases: {', '.join(class_names) if class_names else 'Ninguna'}
-        - Tipos de relaciones: {', '.join(set(relationship_types)) if relationship_types else 'Ninguna'}
-        - Complejidad: {complexity}
-        - Sesiones activas: {len(active_sessions)} usuarios colaborando
+        - Nivel de complejidad: {complexity}
         - Última modificación: {diagram_data.get('last_modified', 'Desconocida')}
+        - Sesiones activas: {len(active_sessions)} usuarios colaborando
+        
+        CLASES DEFINIDAS ({len(classes)}):
+        {chr(10).join(class_details) if class_details else '  * No hay clases definidas todavía'}
+        
+        RELACIONES ({len(relationships)}):
+        {chr(10).join(relationship_details) if relationship_details else '  * No hay relaciones definidas todavía'}
+        
+        OBSERVACIONES:
+        - Total de atributos en el sistema: {sum(len(cls.get('attributes', [])) for cls in classes if isinstance(cls, dict))}
+        - Total de métodos en el sistema: {sum(len(cls.get('methods', [])) for cls in classes if isinstance(cls, dict))}
+        - Clases abstractas: {sum(1 for cls in classes if isinstance(cls, dict) and cls.get('isAbstract', False))}
         """
         
         return context
@@ -187,32 +238,8 @@ class AIAssistantService:
             
             Analiza el diagrama actual y proporciona consejos específicos.
             Sugiere mejoras o explica conceptos relacionados con este diagrama.
-            Si es relevante, menciona funcionalidades específicas del sistema como:
-            - Generación de código SpringBoot
-            - Exportación a PlantUML
-            - Funciones de colaboración
-            - Mejores prácticas de UML
-            
-            Responde en español con instrucciones prácticas y específicas.
+            Responde en el idioma del usuario con instrucciones prácticas y específicas.
             """
-        
-        elif context_type == "code-generation":
-            return f"""
-            CONTEXTO: Generación de código SpringBoot desde diagramas UML
-            {diagram_context if diagram_context else ""}
-            
-            PREGUNTA DEL USUARIO: {user_question}
-            
-            Proporciona ayuda específica sobre:
-            - Requisitos para generar código SpringBoot
-            - Mejores prácticas de diseño UML para código
-            - Configuración de entidades, repositorios y controladores
-            - Anotaciones JPA y Spring Boot
-            - Estructura de proyecto recomendada
-            
-            Incluye ejemplos prácticos y pasos específicos en español.
-            """
-        
         else:  # general help
             return f"""
             PREGUNTA DEL USUARIO: {user_question}
@@ -224,11 +251,11 @@ class AIAssistantService:
             - Navegación del sistema
             - Creación y edición de diagramas
             - Funciones de colaboración en tiempo real
-            - Exportación y generación de código
+            - Generación de código SpringBoot
             - Mejores prácticas de UML
             - Resolución de problemas comunes
             
-            Responde en español de manera clara y práctica.
+            Responde en el idioma del usuario de manera clara y práctica.
             """
     
     def _format_response(self, ai_response: str, context_type: str, diagram_data: Optional[Dict]) -> Dict:

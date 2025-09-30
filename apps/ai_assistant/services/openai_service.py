@@ -98,30 +98,30 @@ class OpenAIService():
             self.logger.error(f"OpenAI API call failed: {e}")
             raise
     
-    def call_command_processing_api(self, command: str, diagram_context: str = None) -> str:
+    def call_command_processing_api(self, command: str, current_diagram_data: dict = None) -> str:
         """
-        Specialized API call for natural language UML command processing.
+        Direct natural language to React Flow JSON conversion.
         
         Args:
             command: Natural language command
-            diagram_context: Optional existing diagram context
+            current_diagram_data: Current diagram state with nodes and edges
             
         Returns:
-            JSON string with UML elements to be created/modified
+            JSON string with exact React Flow node/edge structures
         """
         try:
-            system_prompt = self._build_command_processing_prompt(diagram_context)
+            system_prompt = self._build_direct_json_prompt(current_diagram_data)
             
             messages = [
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": f"COMANDO: {command}"}
+                {"role": "user", "content": command}
             ]
             
             # Use JSON mode for structured output
             response = self.call_api(
                 messages=messages,
-                temperature=0.3,  # Lower temperature for more consistent output
-                max_tokens=2000,  # More tokens for complex JSON structures
+                temperature=0.2,  # Very low for consistent JSON generation
+                max_tokens=3000,  # More tokens for complete class definitions
                 response_format='json'
             )
             
@@ -131,103 +131,174 @@ class OpenAIService():
             self.logger.error(f"Command processing API call failed: {e}")
             raise
     
-    def _build_command_processing_prompt(self, diagram_context: str = None) -> str:
+    def _build_direct_json_prompt(self, current_diagram_data: dict = None) -> str:
         """
-        Build specialized prompt for natural language UML command processing.
+        Build comprehensive prompt for direct React Flow JSON generation.
         """
-        base_prompt = """
-Eres un experto en procesamiento de lenguaje natural para comandos UML en cualquier idioma.
+        import time
+        timestamp_ms = int(time.time() * 1000)
+        
+        base_prompt = f"""
+You are a UML diagram generator that converts natural language to EXACT React Flow JSON.
 
-Tu tarea es convertir comandos en lenguaje natural a estructuras JSON compatibles con React Flow para diagramas UML.
+Your ONLY task is to generate VALID React Flow node/edge JSON structures. NEVER return empty elements arrays.
 
-COMPORTAMIENTO REQUERIDO:
-1. Analiza el comando y extrae entidades UML (clases, atributos, métodos, relaciones)
-2. Genera JSON válido con la estructura exacta requerida por React Flow
-3. Asigna posiciones inteligentes para nuevos elementos
-4. Usa IDs únicos y consistentes
-5. Valida tipos de datos y visibilidad
+CRITICAL RULES:
+1. ALWAYS generate REAL elements - NEVER return empty arrays
+2. Use unique IDs with timestamp: class-{timestamp_ms}, attr-{timestamp_ms}
+3. Position new elements intelligently to avoid overlaps
+4. For "Crea clase User con id, nombre, apellido, sexo" create actual User class with those 4 attributes
+5. Support Spanish, English, French: id=int/Long, nombre/name=String, apellido/lastname=String, sexo/gender=String
+6. ALWAYS populate elements array when command is clear
 
-TIPOS DE COMANDOS SOPORTADOS:
-- Creación de clases: "Create User class", "Nueva entidad Producto", "Créer classe Utilisateur"
-- Definición de atributos: "with attributes name string, age int", "con atributos nombre string, edad int"
-- Añadir métodos: "add login method", "añadir método login", "ajouter méthode login"
-- Establecer relaciones: "User has many Orders", "Usuario tiene muchos Pedidos"
-- Control de visibilidad: "make attribute private", "hacer privado el atributo"
-- Herencia: "User inherits from Person", "Usuario hereda de Persona"
-
-FORMATO DE RESPUESTA JSON:
-{
-  "action": "create_class|add_attribute|add_method|create_relationship|modify_element",
+EXACT JSON STRUCTURE:
+{{
+  "action": "create_class",
   "elements": [
-    {
-      "type": "node|edge",
-      "data": {
-        // React Flow node/edge structure
-      }
-    }
+    {{
+      "type": "node",
+      "data": {{
+        "id": "class-{timestamp_ms}",
+        "data": {{
+          "label": "ClassName",
+          "attributes": [
+            {{"id": "attr-{timestamp_ms}-1", "name": "attributeName", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false}}
+          ],
+          "methods": [],
+          "nodeType": "class",
+          "isAbstract": false
+        }},
+        "type": "class",
+        "position": {{"x": 400, "y": 200}},
+        "width": 180,
+        "height": 140
+      }}
+    }}
   ],
   "confidence": 0.95,
-  "interpretation": "Descripción de lo que se interpretó"
-}
+  "interpretation": "Created User class with specified attributes"
+}}
 
-ESTRUCTURA DE NODOS (CLASES):
-{
-  "id": "class-unique-id",
-  "data": {
-    "label": "ClassName",
-    "attributes": [
-      {
-        "id": "attr-unique-id",
-        "name": "attributeName",
-        "type": "String|Integer|Boolean|Date",
-        "visibility": "private|public|protected"
-      }
-    ],
-    "methods": [
-      {
-        "id": "method-unique-id",
-        "name": "methodName",
-        "returnType": "void|String|Integer",
-        "visibility": "private|public|protected",
-        "parameters": []
-      }
-    ],
-    "nodeType": "class",
-    "isAbstract": false
-  },
-  "type": "class",
-  "position": {"x": 100, "y": 100},
-  "style": {"width": 180, "height": "auto"}
-}
+EXAMPLE COMMANDS AND RESPONSES:
 
-ESTRUCTURA DE EDGES (RELACIONES):
-{
-  "id": "edge-unique-id",
-  "source": "sourceNodeId",
-  "target": "targetNodeId",
-  "type": "umlRelationship",
-  "data": {
-    "relationshipType": "ASSOCIATION|INHERITANCE|COMPOSITION|AGGREGATION",
-    "sourceMultiplicity": "1",
-    "targetMultiplicity": "1..*",
-    "label": ""
-  }
-}
+1. "Crea una clase User que tenga id, nombre, apellido y sexo"
+Response:
+{{
+  "action": "create_class",
+  "elements": [
+    {{
+      "type": "node",
+      "data": {{
+        "id": "class-{timestamp_ms}",
+        "data": {{
+          "label": "User",
+          "attributes": [
+            {{"id": "attr-{timestamp_ms}-1", "name": "id", "type": "Long", "visibility": "private", "isStatic": false, "isFinal": false}},
+            {{"id": "attr-{timestamp_ms}-2", "name": "nombre", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false}},
+            {{"id": "attr-{timestamp_ms}-3", "name": "apellido", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false}},
+            {{"id": "attr-{timestamp_ms}-4", "name": "sexo", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false}}
+          ],
+          "methods": [],
+          "nodeType": "class",
+          "isAbstract": false
+        }},
+        "type": "class",
+        "position": {{"x": 400, "y": 200}},
+        "width": 180,
+        "height": 200
+      }}
+    }}
+  ],
+  "confidence": 0.95,
+  "interpretation": "Se creó la clase User con los atributos: id (Long), nombre (String), apellido (String), sexo (String)"
+}}
 
-RECONOCIMIENTO DE ENTIDADES:
-- Clases: sustantivos capitalizados (User, Product, Category)
-- Atributos: propiedades con tipos (name string, age int, active boolean)
-- Métodos: verbos/acciones (login, calculate, get, save)
-- Relaciones: "has", "belongs to", "inherits", "extends", "composes"
-- Multiplicidad: "one", "many", "several", "0..1", "1..*"
+2. "Create Product class with name, price, and stock"
+Response:
+{{
+  "action": "create_class",
+  "elements": [
+    {{
+      "type": "node",
+      "data": {{
+        "id": "class-{timestamp_ms}",
+        "data": {{
+          "label": "Product",
+          "attributes": [
+            {{"id": "attr-{timestamp_ms}-1", "name": "name", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false}},
+            {{"id": "attr-{timestamp_ms}-2", "name": "price", "type": "Double", "visibility": "private", "isStatic": false, "isFinal": false}},
+            {{"id": "attr-{timestamp_ms}-3", "name": "stock", "type": "Integer", "visibility": "private", "isStatic": false, "isFinal": false}}
+          ],
+          "methods": [],
+          "nodeType": "class",
+          "isAbstract": false
+        }},
+        "type": "class",
+        "position": {{"x": 500, "y": 300}},
+        "width": 180,
+        "height": 180
+      }}
+    }}
+  ],
+  "confidence": 0.95,
+  "interpretation": "Created Product class with name (String), price (Double), and stock (Integer) attributes"
+}}
 
-MANEJO DE ERRORES:
-- Si el comando es ambiguo, usa valores por defecto razonables
-- Si falta información, infiere basándose en el contexto
-- Siempre responde con JSON válido
+TYPE MAPPINGS:
+- id, código, code → Long
+- nombre, name, apellido, lastname → String  
+- edad, age → Integer
+- precio, price, costo, cost → Double
+- activo, active, enabled → Boolean
+- fecha, date, createdAt → Date
+- descripción, description, texto, text → String
+- cantidad, quantity, stock → Integer
+- email, correo → String
+- teléfono, phone → String
+- dirección, address → String
+- sexo, gender → String
+
+POSITIONING STRATEGY:
+- First class: {{"x": 400, "y": 200}}
+- Second class: {{"x": 700, "y": 200}}
+- Third class: {{"x": 400, "y": 450}}
+- Fourth class: {{"x": 700, "y": 450}}
+- Avoid overlaps with existing nodes
+
+RELATIONSHIP STRUCTURE:
+{{
+  "type": "edge",
+  "data": {{
+    "id": "edge-{timestamp_ms}",
+    "source": "class-source-id",
+    "target": "class-target-id",
+    "type": "umlRelationship",
+    "data": {{
+      "relationshipType": "ASSOCIATION",
+      "sourceMultiplicity": "1",
+      "targetMultiplicity": "*",
+      "label": ""
+    }}
+  }}
+}}
+
+CRITICAL: Generate timestamp-based unique IDs, create REAL attributes for all mentioned fields, and ALWAYS return populated elements arrays.
 """
         
-        if diagram_context:
-            base_prompt += f"\n\nCONTEXTO DEL DIAGRAMA ACTUAL:\n{diagram_context}\n\nConsidera las clases existentes para evitar conflictos y crear relaciones válidas."
+        if current_diagram_data:
+            nodes = current_diagram_data.get('nodes', [])
+            edges = current_diagram_data.get('edges', [])
+            
+            if nodes:
+                node_info = []
+                for node in nodes[:5]:  # Limit to avoid token overflow
+                    node_data = node.get('data', {})
+                    label = node_data.get('label', 'Unknown')
+                    node_id = node.get('id', '')
+                    node_info.append(f"- {label} (ID: {node_id})")
+                
+                context = f"\n\nEXISTING DIAGRAM CONTEXT:\nClasses: {', '.join([n.get('data', {}).get('label', '') for n in nodes])}\n" + "\n".join(node_info)
+                context += f"\n\nPosition new classes to avoid these existing positions. Use x > 100 and y > 100."
+                base_prompt += context
         
         return base_prompt

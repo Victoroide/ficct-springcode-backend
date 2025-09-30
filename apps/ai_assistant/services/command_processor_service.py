@@ -1,17 +1,16 @@
 import json
-import uuid
 import logging
-import re
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime
+from typing import Dict, Optional
 from .openai_service import OpenAIService
-from apps.uml_diagrams.models import UMLDiagram
 
 
 class UMLCommandProcessorService:
     """
-    Advanced natural language processing service for UML diagram generation.
-    Converts natural language commands into React Flow compatible JSON structures.
+    Simplified natural language processing service for UML diagram generation.
+    Uses direct OpenAI API call with comprehensive prompt to generate exact 
+    React Flow compatible JSON structures.
+    
+    Replaces complex pattern matching with single powerful AI call.
     """
     
     def __init__(self):
@@ -23,618 +22,94 @@ class UMLCommandProcessorService:
             self.openai_available = False
             
         self.logger = logging.getLogger(__name__)
-        
-        # Command patterns for different languages
-        self.command_patterns = {
-            'create_class': [
-                r'(?:create|crear|créer|erstellen)\s+(?:class|classe|klasse)?\s+([A-Z][a-zA-Z0-9_]*)',
-                r'(?:new|nueva|nouveau|neu)\s+(?:entity|entidad|entité|entität)\s+([A-Z][a-zA-Z0-9_]*)',
-                r'(?:add|añadir|ajouter|hinzufügen)\s+(?:class|clase|classe|klasse)\s+([A-Z][a-zA-Z0-9_]*)'
-            ],
-            'add_attribute': [
-                r'(?:with|con|avec|mit)\s+(?:attributes?|atributos?|attributs?)\s+(.+)',
-                r'(?:add|añadir|ajouter|hinzufügen)\s+(?:attribute|atributo|attribut)\s+(.+)',
-                r'(?:has|tiene|a|hat)\s+(?:attribute|atributo|attribut)\s+(.+)'
-            ],
-            'add_method': [
-                r'(?:add|añadir|ajouter|hinzufügen)\s+(?:method|método|méthode|methode)\s+([a-zA-Z_][a-zA-Z0-9_]*)',
-                r'(?:with|con|avec|mit)\s+(?:method|método|méthode|methode)\s+([a-zA-Z_][a-zA-Z0-9_]*)',
-                r'(?:create|crear|créer|erstellen)\s+(?:function|función|fonction|funktion)\s+([a-zA-Z_][a-zA-Z0-9_]*)'
-            ],
-            'create_relationship': [
-                r'([A-Z][a-zA-Z0-9_]*)\s+(?:has|tiene|a|hat)\s+(?:many|muchos|plusieurs|viele)\s+([A-Z][a-zA-Z0-9_]*)',
-                r'([A-Z][a-zA-Z0-9_]*)\s+(?:belongs to|pertenece a|appartient à|gehört zu)\s+([A-Z][a-zA-Z0-9_]*)',
-                r'([A-Z][a-zA-Z0-9_]*)\s+(?:inherits from|hereda de|hérite de|erbt von)\s+([A-Z][a-zA-Z0-9_]*)',
-                r'([A-Z][a-zA-Z0-9_]*)\s+(?:extends|extiende|étend|erweitert)\s+([A-Z][a-zA-Z0-9_]*)'
-            ]
-        }
-        
-        # Data type mappings
-        self.type_mappings = {
-            'string': 'String', 'str': 'String', 'text': 'String', 'texto': 'String',
-            'int': 'Integer', 'integer': 'Integer', 'número': 'Integer', 'nombre': 'Integer',
-            'bool': 'Boolean', 'boolean': 'Boolean', 'booleano': 'Boolean',
-            'date': 'Date', 'fecha': 'Date', 'datetime': 'Date',
-            'float': 'Float', 'double': 'Double', 'decimal': 'Decimal'
-        }
-        
-        # Visibility mappings
-        self.visibility_mappings = {
-            'private': 'private', 'privado': 'private', 'privé': 'private',
-            'public': 'public', 'público': 'public', 'publique': 'public',
-            'protected': 'protected', 'protegido': 'protected', 'protégé': 'protected'
-        }
     
     def process_command(self, command: str, diagram_id: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
         """
-        Process natural language command and generate UML elements.
+        Process natural language command and generate UML elements using direct OpenAI call.
         
         Args:
             command: Natural language command
-            diagram_id: Optional diagram ID for context
+            diagram_id: Optional diagram ID for context (not used in simplified version)
+            current_diagram_data: Current diagram state with nodes and edges
             
         Returns:
             Dict with processed elements and metadata
         """
         try:
-            # Get diagram context from current_diagram_data or database
-            diagram_context = None
-            if current_diagram_data:
-                diagram_context = self._build_context_from_data(current_diagram_data)
-            elif diagram_id:
-                diagram_context = self._get_diagram_context(diagram_id)
+            if not self.openai_available:
+                return {
+                    'action': 'error',
+                    'elements': [],
+                    'confidence': 0.0,
+                    'interpretation': 'OpenAI service unavailable',
+                    'error': 'AI service unavailable. Install OpenAI dependencies.',
+                    'suggestion': 'Install openai and tiktoken packages to enable AI command processing.'
+                }
             
-            # First try pattern-based processing for common commands
-            pattern_result = self._process_with_patterns(command, diagram_context, current_diagram_data)
-            if pattern_result and pattern_result.get('confidence', 0) > 0.7:
-                self.logger.info(f"Pattern-based processing successful for: {command[:50]}...")
-                return pattern_result
+            # Single OpenAI API call with comprehensive prompt
+            response = self.openai_service.call_command_processing_api(
+                command=command,
+                current_diagram_data=current_diagram_data
+            )
             
-            # Fall back to AI processing for complex commands
-            if self.openai_available:
-                ai_result = self._process_with_ai(command, diagram_context, current_diagram_data)
-                self.logger.info(f"AI processing completed for: {command[:50]}...")
-                return ai_result
-            else:
-                # Return pattern result or error if AI unavailable
-                if pattern_result:
-                    return pattern_result
-                else:
-                    return {
-                        'error': 'AI service unavailable and command not recognized by patterns',
-                        'suggestion': 'Try using simpler command patterns like "Create class User" or "Add method login"'
-                    }
+            # Parse JSON response
+            try:
+                result = json.loads(response)
+                
+                # Validate that elements array is not empty for successful commands
+                if result.get('action') != 'error' and not result.get('elements'):
+                    self.logger.warning(f"AI returned empty elements for command: {command[:50]}")
+                    result['confidence'] = 0.3
+                    result['interpretation'] = result.get('interpretation', '') + ' (Warning: No elements generated)'
+                
+                self.logger.info(f"Command processed successfully: {command[:50]}... (confidence: {result.get('confidence', 0)})")
+                return result
+                
+            except json.JSONDecodeError as e:
+                self.logger.error(f"Invalid JSON from OpenAI: {e}")
+                return {
+                    'action': 'error',
+                    'elements': [],
+                    'confidence': 0.0,
+                    'interpretation': 'Failed to parse AI response',
+                    'error': 'Invalid JSON response from AI',
+                    'suggestion': 'Please try rephrasing your command more clearly.'
+                }
                     
         except Exception as e:
             self.logger.error(f"Error processing command: {e}")
             return {
+                'action': 'error',
+                'elements': [],
+                'confidence': 0.0,
+                'interpretation': f'Error: {str(e)}',
                 'error': f'Error processing command: {str(e)}',
-                'suggestion': 'Please try rephrasing your command or contact support'
+                'suggestion': 'Please try again or contact support if the issue persists.'
             }
-    
-    def _build_context_from_data(self, diagram_data: Dict) -> str:
-        """Build context string from current diagram data."""
-        try:
-            nodes = diagram_data.get('nodes', [])
-            edges = diagram_data.get('edges', [])
-            
-            context_parts = []
-            context_parts.append("DIAGRAMA ACTUAL:")
-            
-            if nodes:
-                class_names = [node.get('data', {}).get('label', 'Unknown') for node in nodes]
-                context_parts.append(f"CLASES EXISTENTES: {', '.join(class_names)}")
-                
-                for node in nodes:
-                    node_data = node.get('data', {})
-                    class_name = node_data.get('label', 'Unknown')
-                    node_id = node.get('id', '')
-                    attributes = node_data.get('attributes', [])
-                    methods = node_data.get('methods', [])
-                    
-                    context_parts.append(f"\\nCLASE: {class_name} (ID: {node_id})")
-                    if attributes:
-                        attr_names = [attr.get('name', 'unknown') for attr in attributes]
-                        context_parts.append(f"  Atributos: {', '.join(attr_names)}")
-                    if methods:
-                        method_names = [method.get('name', 'unknown') for method in methods]
-                        context_parts.append(f"  Métodos: {', '.join(method_names)}")
-            
-            if edges:
-                context_parts.append(f"\\nRELACIONES EXISTENTES: {len(edges)} relaciones definidas")
-            
-            return '\\n'.join(context_parts)
-            
-        except Exception as e:
-            self.logger.error(f"Error building context from data: {e}")
-            return ""
-    
-    def _get_diagram_context(self, diagram_id: str) -> Optional[str]:
-        """Get current diagram context for AI processing."""
-        try:
-            diagram = UMLDiagram.objects.get(id=diagram_id)
-            classes = diagram.get_classes()
-            relationships = diagram.get_relationships()
-            
-            context_parts = []
-            context_parts.append(f"DIAGRAMA EXISTENTE: {diagram.title}")
-            
-            if classes:
-                class_names = [cls.get('data', {}).get('label', 'Unknown') for cls in classes]
-                context_parts.append(f"CLASES EXISTENTES: {', '.join(class_names)}")
-                
-                for cls in classes[:5]:  # Limit to avoid token overflow
-                    cls_data = cls.get('data', {})
-                    class_name = cls_data.get('label', 'Unknown')
-                    attributes = cls_data.get('attributes', [])
-                    methods = cls_data.get('methods', [])
-                    
-                    if attributes:
-                        attr_names = [attr.get('name', 'unknown') for attr in attributes]
-                        context_parts.append(f"  {class_name} atributos: {', '.join(attr_names)}")
-                    if methods:
-                        method_names = [method.get('name', 'unknown') for method in methods]
-                        context_parts.append(f"  {class_name} métodos: {', '.join(method_names)}")
-            
-            if relationships:
-                context_parts.append(f"RELACIONES EXISTENTES: {len(relationships)} relaciones definidas")
-            
-            return '\n'.join(context_parts)
-            
-        except UMLDiagram.DoesNotExist:
-            return None
-        except Exception as e:
-            self.logger.error(f"Error getting diagram context: {e}")
-            return None
-    
-    def _process_with_patterns(self, command: str, diagram_context: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Optional[Dict]:
-        """Process command using regex patterns for common operations."""
-        command_lower = command.lower().strip()
-        
-        # Try to match create class patterns
-        for pattern in self.command_patterns['create_class']:
-            match = re.search(pattern, command, re.IGNORECASE)
-            if match:
-                class_name = match.group(1)
-                return self._create_class_element(class_name, command, diagram_context, current_diagram_data)
-        
-        # NEW: Handle generic "add attributes to ClassName" pattern
-        generic_attr_pattern = r'(?:agrega|añade|add)\s+(?:atributos?|attributes?)\s+(?:a|to)\s+([A-Z][a-zA-Z0-9_]*)'
-        match = re.search(generic_attr_pattern, command, re.IGNORECASE)
-        if match:
-            class_name = match.group(1)
-            return self._create_generic_attributes(class_name, command, diagram_context, current_diagram_data)
-        
-        # Try to match add attribute patterns with specific attributes
-        for pattern in self.command_patterns['add_attribute']:
-            match = re.search(pattern, command, re.IGNORECASE)
-            if match:
-                attributes_text = match.group(1)
-                return self._create_attribute_elements(attributes_text, command, diagram_context, current_diagram_data)
-        
-        # Try to match add method patterns
-        for pattern in self.command_patterns['add_method']:
-            match = re.search(pattern, command, re.IGNORECASE)
-            if match:
-                method_name = match.group(1)
-                return self._create_method_element(method_name, command, diagram_context, current_diagram_data)
-        
-        # Try to match relationship patterns
-        for pattern in self.command_patterns['create_relationship']:
-            match = re.search(pattern, command, re.IGNORECASE)
-            if match:
-                source_class = match.group(1)
-                target_class = match.group(2)
-                return self._create_relationship_element(source_class, target_class, command, diagram_context, current_diagram_data)
-        
-        return None
-    
-    def _create_generic_attributes(self, class_name: str, original_command: str, diagram_context: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
-        """Create generic attributes when no specific attributes are mentioned."""
-        # Find the target class in current diagram data
-        target_node_id = None
-        if current_diagram_data:
-            nodes = current_diagram_data.get('nodes', [])
-            for node in nodes:
-                node_label = node.get('data', {}).get('label', '')
-                if node_label.lower() == class_name.lower():
-                    target_node_id = node.get('id')
-                    break
-        
-        # Generate contextual attributes based on class name
-        suggested_attributes = self._suggest_attributes_for_class(class_name)
-        
-        attributes = []
-        for attr_name, attr_type in suggested_attributes:
-            attribute = {
-                "id": f"attr-{str(uuid.uuid4())[:8]}",
-                "name": attr_name,
-                "type": attr_type,
-                "visibility": "private"
-            }
-            attributes.append(attribute)
-        
-        return {
-            "action": "add_attribute",
-            "elements": [{
-                "type": "attribute_update",
-                "data": {
-                    "target_class_id": target_node_id,
-                    "target_class_name": class_name,
-                    "attributes": attributes
-                }
-            }],
-            "confidence": 0.75,
-            "interpretation": f"Generando {len(attributes)} atributos sugeridos para la clase '{class_name}': {', '.join([a['name'] for a in attributes])}"
-        }
-    
-    def _suggest_attributes_for_class(self, class_name: str) -> List[Tuple[str, str]]:
-        """Suggest relevant attributes based on class name."""
-        class_lower = class_name.lower()
-        
-        # Common attribute patterns
-        common_attrs = [
-            ("id", "Long"),
-            ("name", "String"),
-            ("description", "String"),
-            ("createdAt", "Date"),
-            ("updatedAt", "Date")
-        ]
-        
-        # Domain-specific attributes
-        if any(keyword in class_lower for keyword in ['user', 'usuario', 'person', 'persona']):
-            return [
-                ("id", "Long"),
-                ("username", "String"),
-                ("email", "String"),
-                ("password", "String"),
-                ("createdAt", "Date")
-            ]
-        elif any(keyword in class_lower for keyword in ['product', 'producto', 'item', 'articulo']):
-            return [
-                ("id", "Long"),
-                ("name", "String"),
-                ("price", "Double"),
-                ("stock", "Integer"),
-                ("description", "String")
-            ]
-        elif any(keyword in class_lower for keyword in ['order', 'pedido', 'compra']):
-            return [
-                ("id", "Long"),
-                ("orderNumber", "String"),
-                ("total", "Double"),
-                ("status", "String"),
-                ("orderDate", "Date")
-            ]
-        elif any(keyword in class_lower for keyword in ['category', 'categoria']):
-            return [
-                ("id", "Long"),
-                ("name", "String"),
-                ("description", "String")
-            ]
-        else:
-            # Generic attributes for unknown classes
-            return common_attrs[:3]  # id, name, description
-    
-    def _process_with_ai(self, command: str, diagram_context: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
-        """Process command using AI for complex natural language understanding."""
-        try:
-            response = self.openai_service.call_command_processing_api(command, diagram_context)
-            
-            # Parse AI response
-            ai_data = json.loads(response)
-            
-            # Validate and enhance AI response
-            validated_data = self._validate_ai_response(ai_data)
-            
-            # Add positioning intelligence
-            positioned_data = self._apply_intelligent_positioning(validated_data, diagram_context)
-            
-            return positioned_data
-            
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Invalid JSON from AI: {e}")
-            return {
-                'error': 'AI response parsing failed',
-                'suggestion': 'Please try rephrasing your command'
-            }
-        except Exception as e:
-            self.logger.error(f"AI processing error: {e}")
-            return {
-                'error': f'AI processing failed: {str(e)}',
-                'suggestion': 'Please try again or use simpler command patterns'
-            }
-    
-    def _create_class_element(self, class_name: str, original_command: str, diagram_context: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
-        """Create a class element from pattern matching."""
-        element_id = f"class-{str(uuid.uuid4())[:8]}"
-        
-        # Calculate intelligent position
-        position = self._calculate_next_position(diagram_context)
-        
-        class_element = {
-            "id": element_id,
-            "data": {
-                "label": class_name,
-                "attributes": [],
-                "methods": [],
-                "nodeType": "class",
-                "isAbstract": False
-            },
-            "type": "class",
-            "position": position,
-            "style": {"width": 180, "height": "auto"}
-        }
-        
-        return {
-            "action": "create_class",
-            "elements": [{
-                "type": "node",
-                "data": class_element
-            }],
-            "confidence": 0.9,
-            "interpretation": f"Crear clase '{class_name}' basado en el comando: '{original_command}'"
-        }
-    
-    def _create_attribute_elements(self, attributes_text: str, original_command: str, diagram_context: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
-        """Create attribute elements from text parsing."""
-        attributes = []
-        
-        # Parse attributes (name type, name type, ...)
-        attr_parts = [part.strip() for part in attributes_text.split(',')]
-        
-        for attr_part in attr_parts:
-            tokens = attr_part.strip().split()
-            if len(tokens) >= 2:
-                attr_name = tokens[0]
-                attr_type = tokens[1]
-                
-                # Map type to standard format
-                mapped_type = self.type_mappings.get(attr_type.lower(), attr_type.capitalize())
-                
-                # Detect visibility
-                visibility = 'private'  # Default
-                if len(tokens) > 2:
-                    visibility = self.visibility_mappings.get(tokens[2].lower(), visibility)
-                
-                attribute = {
-                    "id": f"attr-{str(uuid.uuid4())[:8]}",
-                    "name": attr_name,
-                    "type": mapped_type,
-                    "visibility": visibility
-                }
-                attributes.append(attribute)
-        
-        return {
-            "action": "add_attribute",
-            "elements": [{
-                "type": "attribute_update",
-                "data": {
-                    "attributes": attributes
-                }
-            }],
-            "confidence": 0.85,
-            "interpretation": f"Añadir {len(attributes)} atributos basado en: '{original_command}'"
-        }
-    
-    def _create_method_element(self, method_name: str, original_command: str, diagram_context: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
-        """Create method element from pattern matching."""
-        method = {
-            "id": f"method-{str(uuid.uuid4())[:8]}",
-            "name": method_name,
-            "returnType": "void",
-            "visibility": "public",
-            "parameters": []
-        }
-        
-        return {
-            "action": "add_method", 
-            "elements": [{
-                "type": "method_update",
-                "data": {
-                    "methods": [method]
-                }
-            }],
-            "confidence": 0.8,
-            "interpretation": f"Añadir método '{method_name}' basado en: '{original_command}'"
-        }
-    
-    def _create_relationship_element(self, source_class: str, target_class: str, original_command: str, diagram_context: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
-        """Create relationship element from pattern matching."""
-        
-        # Determine relationship type from command
-        command_lower = original_command.lower()
-        relationship_type = "ASSOCIATION"  # Default
-        source_multiplicity = "1"
-        target_multiplicity = "1"
-        
-        if any(word in command_lower for word in ['has many', 'tiene muchos', 'a plusieurs']):
-            relationship_type = "ASSOCIATION"
-            source_multiplicity = "1"
-            target_multiplicity = "1..*"
-        elif any(word in command_lower for word in ['belongs to', 'pertenece a', 'appartient à']):
-            relationship_type = "ASSOCIATION"
-            source_multiplicity = "1..*"
-            target_multiplicity = "1"
-        elif any(word in command_lower for word in ['inherits', 'hereda', 'hérite', 'extends', 'extiende']):
-            relationship_type = "INHERITANCE"
-        elif any(word in command_lower for word in ['composes', 'compone', 'compose']):
-            relationship_type = "COMPOSITION"
-        elif any(word in command_lower for word in ['aggregates', 'agrega', 'agrège']):
-            relationship_type = "AGGREGATION"
-        
-        edge_element = {
-            "id": f"edge-{str(uuid.uuid4())[:8]}",
-            "source": f"class-{source_class.lower()}",
-            "target": f"class-{target_class.lower()}",
-            "type": "umlRelationship",
-            "data": {
-                "relationshipType": relationship_type,
-                "sourceMultiplicity": source_multiplicity,
-                "targetMultiplicity": target_multiplicity,
-                "label": ""
-            }
-        }
-        
-        return {
-            "action": "create_relationship",
-            "elements": [{
-                "type": "edge",
-                "data": edge_element
-            }],
-            "confidence": 0.85,
-            "interpretation": f"Crear relación {relationship_type} entre '{source_class}' y '{target_class}'"
-        }
-    
-    def _validate_ai_response(self, ai_data: Dict) -> Dict:
-        """Validate and normalize AI response data."""
-        validated = {
-            "action": ai_data.get("action", "unknown"),
-            "elements": [],
-            "confidence": min(ai_data.get("confidence", 0.5), 1.0),
-            "interpretation": ai_data.get("interpretation", "AI processing completed")
-        }
-        
-        for element in ai_data.get("elements", []):
-            if element.get("type") == "node":
-                validated_node = self._validate_node_element(element.get("data", {}))
-                if validated_node:
-                    validated["elements"].append({
-                        "type": "node",
-                        "data": validated_node
-                    })
-            elif element.get("type") == "edge":
-                validated_edge = self._validate_edge_element(element.get("data", {}))
-                if validated_edge:
-                    validated["elements"].append({
-                        "type": "edge", 
-                        "data": validated_edge
-                    })
-        
-        return validated
-    
-    def _validate_node_element(self, node_data: Dict) -> Optional[Dict]:
-        """Validate and normalize node element data."""
-        if not node_data.get("id"):
-            node_data["id"] = f"class-{str(uuid.uuid4())[:8]}"
-        
-        # Ensure required fields
-        validated_node = {
-            "id": node_data["id"],
-            "data": {
-                "label": node_data.get("data", {}).get("label", "NewClass"),
-                "attributes": node_data.get("data", {}).get("attributes", []),
-                "methods": node_data.get("data", {}).get("methods", []),
-                "nodeType": "class",
-                "isAbstract": node_data.get("data", {}).get("isAbstract", False)
-            },
-            "type": "class",
-            "position": node_data.get("position", {"x": 100, "y": 100}),
-            "style": {"width": 180, "height": "auto"}
-        }
-        
-        # Validate attributes
-        validated_attributes = []
-        for attr in validated_node["data"]["attributes"]:
-            if attr.get("name"):
-                validated_attr = {
-                    "id": attr.get("id", f"attr-{str(uuid.uuid4())[:8]}"),
-                    "name": attr["name"],
-                    "type": self.type_mappings.get(attr.get("type", "String").lower(), attr.get("type", "String")),
-                    "visibility": self.visibility_mappings.get(attr.get("visibility", "private").lower(), "private")
-                }
-                validated_attributes.append(validated_attr)
-        validated_node["data"]["attributes"] = validated_attributes
-        
-        # Validate methods
-        validated_methods = []
-        for method in validated_node["data"]["methods"]:
-            if method.get("name"):
-                validated_method = {
-                    "id": method.get("id", f"method-{str(uuid.uuid4())[:8]}"),
-                    "name": method["name"],
-                    "returnType": method.get("returnType", "void"),
-                    "visibility": self.visibility_mappings.get(method.get("visibility", "public").lower(), "public"),
-                    "parameters": method.get("parameters", [])
-                }
-                validated_methods.append(validated_method)
-        validated_node["data"]["methods"] = validated_methods
-        
-        return validated_node
-    
-    def _validate_edge_element(self, edge_data: Dict) -> Optional[Dict]:
-        """Validate and normalize edge element data."""
-        if not all([edge_data.get("source"), edge_data.get("target")]):
-            return None
-        
-        validated_edge = {
-            "id": edge_data.get("id", f"edge-{str(uuid.uuid4())[:8]}"),
-            "source": edge_data["source"],
-            "target": edge_data["target"],
-            "type": "umlRelationship",
-            "data": {
-                "relationshipType": edge_data.get("data", {}).get("relationshipType", "ASSOCIATION"),
-                "sourceMultiplicity": edge_data.get("data", {}).get("sourceMultiplicity", "1"),
-                "targetMultiplicity": edge_data.get("data", {}).get("targetMultiplicity", "1"),
-                "label": edge_data.get("data", {}).get("label", "")
-            }
-        }
-        
-        return validated_edge
-    
-    def _apply_intelligent_positioning(self, data: Dict, diagram_context: Optional[str] = None) -> Dict:
-        """Apply intelligent positioning to elements based on diagram context."""
-        for element in data.get("elements", []):
-            if element.get("type") == "node":
-                node_data = element.get("data", {})
-                if not node_data.get("position") or node_data["position"] == {"x": 100, "y": 100}:
-                    # Calculate intelligent position
-                    new_position = self._calculate_next_position(diagram_context)
-                    node_data["position"] = new_position
-        
-        return data
-    
-    def _calculate_next_position(self, diagram_context: Optional[str] = None) -> Dict[str, int]:
-        """Calculate intelligent position for new elements."""
-        # Default position
-        base_x, base_y = 100, 100
-        
-        if diagram_context:
-            # Try to parse existing positions from context
-            # This is a simplified version - in production you'd parse the actual diagram data
-            lines = diagram_context.split('\n')
-            class_count = sum(1 for line in lines if 'CLASES EXISTENTES:' in line)
-            
-            # Simple grid layout
-            grid_size = 250
-            col = class_count % 4
-            row = class_count // 4
-            
-            return {"x": base_x + (col * grid_size), "y": base_y + (row * grid_size)}
-        
-        return {"x": base_x, "y": base_y}
     
     def get_supported_commands(self) -> Dict:
-        """Return documentation of supported command patterns."""
+        """
+        Return documentation of supported command patterns.
+        """
         return {
             "create_class": [
                 "Create class User",
-                "Nueva entidad Producto", 
-                "Add class Category"
+                "Crea una clase Producto con nombre, precio, stock", 
+                "Nueva entidad Categoria"
             ],
             "add_attribute": [
-                "with attributes name string, age int",
-                "con atributos nombre string, edad int",
-                "add attribute email string private"
+                "User with attributes email string, age int",
+                "con atributos id, nombre, apellido, edad",
+                "add attribute status string"
             ],
             "add_method": [
                 "add method login",
-                "añadir método calcular",
+                "añadir método calcular total",
                 "create function save"
             ],
             "create_relationship": [
                 "User has many Orders",
-                "Usuario hereda de Persona",
-                "Product belongs to Category"
+                "Producto pertenece a Categoria",
+                "Admin extends User"
             ]
         }

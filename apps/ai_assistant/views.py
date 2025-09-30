@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 
 class AIAssistantRateThrottle(AnonRateThrottle):
     """Custom rate throttle for AI assistant endpoints."""
-    rate = '30/hour'
+    rate = '100/minute'  # 100 requests por minuto para desarrollo
 
 
 @extend_schema(

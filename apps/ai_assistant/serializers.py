@@ -42,16 +42,24 @@ class AIAssistantResponseSerializer(serializers.Serializer):
     )
     suggestions = serializers.ListField(
         child=serializers.CharField(max_length=200),
+        required=False,
+        default=list,
         help_text="List of suggested actions or follow-up questions"
     )
     related_features = serializers.ListField(
         child=serializers.CharField(max_length=100),
+        required=False,
+        default=list,
         help_text="List of related system features"
     )
     context_type = serializers.CharField(
+        required=False,
+        default='general',
         help_text="Context type that was used for the response"
     )
     timestamp = serializers.DateTimeField(
+        required=False,
+        allow_null=True,
         help_text="Response generation timestamp"
     )
 
