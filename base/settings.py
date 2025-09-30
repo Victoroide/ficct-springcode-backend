@@ -39,7 +39,6 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     'apps.uml_diagrams',
     'apps.websockets',
-    'apps.code_generation',
     'apps.ai_assistant',
 ]
 
@@ -175,24 +174,7 @@ else:
     logging.warning("Throttling disabled - Redis not available")
 
 
-CELERY_BROKER_URL = env('CELERY_BROKER_URL', default=REDIS_URL)
-CELERY_RESULT_BACKEND = env('CELERY_RESULT_BACKEND', default=REDIS_URL)
-CELERY_ACCEPT_CONTENT = ['json']
-CELERY_TASK_SERIALIZER = 'json'
-CELERY_RESULT_SERIALIZER = 'json'
-CELERY_TIMEZONE = 'UTC'
-CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
-EMAIL_BACKEND = env('EMAIL_BACKEND', default='django.core.mail.backends.smtp.EmailBackend')
-EMAIL_HOST = env('EMAIL_HOST', default='smtp.gmail.com')
-EMAIL_PORT = env.int('EMAIL_PORT', default=587)
-EMAIL_USE_TLS = env.bool('EMAIL_USE_TLS', default=True)
-EMAIL_HOST_USER = env('EMAIL_HOST_USER', default='')
-EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD', default='')
-
-SENDGRID_API_KEY = env('SENDGRID_API_KEY', default='')
-DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL', default='noreply@ficct-enterprise.com')
-SENDGRID_SANDBOX_MODE_IN_DEBUG = DEBUG
 
 SECURE_BROWSER_XSS_FILTER = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
@@ -317,15 +299,6 @@ LOGGING = {
     },
 }
 
-ENTERPRISE_DOMAIN_VALIDATION = True
-ENABLE_2FA_ENFORCEMENT = True
-PASSWORD_EXPIRY_DAYS = 90
-MAX_LOGIN_ATTEMPTS = 5
-ACCOUNT_LOCKOUT_DURATION_MINUTES = 15
-
-ADMIN_IP_WHITELIST = env.list('ADMIN_IP_WHITELIST', default=['127.0.0.1', 'localhost'])
-
-RATELIMIT_USE_CACHE = 'default'
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'FICCT UML Diagram Collaborative API',

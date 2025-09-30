@@ -13,31 +13,9 @@ psycopg2-binary
 redis
 django-redis
 
-djangorestframework-simplejwt
-django-otp
-qrcode
-Pillow
-cryptography
-
-Jinja2
-MarkupSafe
-zipfile36
-
-PyYAML
-toml
-
-celery
-django-celery-beat
-django-celery-results
-
-sendgrid
-
 django-ratelimit
-django-axes
 django-environ
 
-django-phonenumber-field
-phonenumbers
 pytz
 jsonschema
 pydantic
