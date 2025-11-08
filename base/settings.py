@@ -105,39 +105,58 @@ except:
         }
     }
 
-REDIS_URL = env('REDIS_URL', default=None)
+# Redis Configuration - Separated by service type
+CACHE_REDIS_URL = env('CACHE_REDIS_URL', default=None)
+CHANNEL_LAYERS_REDIS_URL = env('CHANNEL_LAYERS_REDIS_URL', default=None)
+REDIS_URL = env('REDIS_URL', default=None)  # Legacy fallback
 
 IS_RAILWAY = env.bool('RAILWAY_ENVIRONMENT', default=False)
 
-if REDIS_URL and IS_RAILWAY:
-
+# Cache Configuration with Redis Database 0
+if CACHE_REDIS_URL:
     try:
         import redis
-        redis_client = redis.Redis.from_url(REDIS_URL)
+        redis_client = redis.Redis.from_url(
+            CACHE_REDIS_URL,
+            decode_responses=True,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+            retry_on_timeout=True
+        )
         redis_client.ping()
         
         CACHES = {
             'default': {
                 'BACKEND': 'django_redis.cache.RedisCache',
-                'LOCATION': REDIS_URL,
+                'LOCATION': CACHE_REDIS_URL,
                 'OPTIONS': {
                     'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-                }
+                    'CONNECTION_POOL_KWARGS': {
+                        'max_connections': 50,
+                        'retry_on_timeout': True,
+                    },
+                    'SOCKET_CONNECT_TIMEOUT': 5,
+                    'SOCKET_TIMEOUT': 5,
+                },
+                'KEY_PREFIX': 'springcode_cache',
+                'TIMEOUT': 300,  # 5 minutes default
             }
         }
         SESSION_ENGINE = 'django.contrib.sessions.backends.cache'
         REDIS_AVAILABLE = True
         
+        import logging
+        logging.info("Redis cache connected successfully (Database 0)")
+        
     except Exception as e:
         import logging
-        logging.warning(f"Railway Redis failed ({e}), using database cache")
+        logging.warning(f"Redis cache failed ({e}), using database cache")
         REDIS_AVAILABLE = False
 else:
-
     REDIS_AVAILABLE = False
 
+# Fallback to Database Cache if Redis unavailable
 if not REDIS_AVAILABLE:
-
     CACHES = {
         'default': {
             'BACKEND': 'django.core.cache.backends.db.DatabaseCache',
@@ -145,6 +164,9 @@ if not REDIS_AVAILABLE:
         }
     }
     SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+    
+    import logging
+    logging.info("Using database cache (Redis not configured)")
 SESSION_CACHE_ALIAS = 'default'
 SESSION_COOKIE_AGE = 86400  # 24 hours
 SESSION_COOKIE_SECURE = not DEBUG
@@ -370,21 +392,45 @@ SPECTACULAR_SETTINGS = {
     }
 }
 
-if REDIS_AVAILABLE and REDIS_URL:
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                'hosts': [REDIS_URL],
-                'capacity': 1500,
-                'expiry': 60,
+# Channel Layers Configuration with Redis Database 1
+if CHANNEL_LAYERS_REDIS_URL:
+    try:
+        import redis
+        # Test connection to Channel Layers Redis
+        channel_redis_client = redis.Redis.from_url(
+            CHANNEL_LAYERS_REDIS_URL,
+            socket_connect_timeout=5,
+            socket_timeout=5,
+            retry_on_timeout=True
+        )
+        channel_redis_client.ping()
+        
+        CHANNEL_LAYERS = {
+            'default': {
+                'BACKEND': 'channels_redis.core.RedisChannelLayer',
+                'CONFIG': {
+                    'hosts': [CHANNEL_LAYERS_REDIS_URL],
+                    'capacity': 1500,
+                    'expiry': 60,
+                },
             },
-        },
-    }
-    import logging
-    logging.info("Using Redis for WebSocket channels")
+        }
+        
+        import logging
+        logging.info("Redis channel layers connected successfully (Database 1)")
+        
+    except Exception as e:
+        import logging
+        logging.warning(f"Redis channel layers failed ({e}), using InMemory fallback")
+        
+        CHANNEL_LAYERS = {
+            'default': {
+                'BACKEND': 'channels.layers.InMemoryChannelLayer',
+                'CAPACITY': 100,
+                'EXPIRY': 60,
+            },
+        }
 else:
-
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels.layers.InMemoryChannelLayer',
@@ -392,8 +438,9 @@ else:
             'EXPIRY': 60,
         },
     }
+    
     import logging
-    logging.warning("Using InMemory channels - WebSockets may not work across multiple instances")
+    logging.info("Using InMemory channels (Redis not configured)")
 
 ASGI_APPLICATION = 'base.asgi.application'
 
