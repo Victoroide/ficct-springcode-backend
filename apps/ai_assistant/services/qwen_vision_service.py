@@ -43,7 +43,7 @@ def get_qwen_client() -> Optional[OpenAI]:
         try:
             _qwen_client = OpenAI(
                 api_key=api_key,
-                base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
+                base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
             )
             logger.info("Qwen3-VL client initialized successfully")
         except Exception as e:
