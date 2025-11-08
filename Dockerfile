@@ -4,27 +4,13 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV DJANGO_SETTINGS_MODULE=base.settings
 
-# Install system dependencies including OCR libraries
+# Install minimal system dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     build-essential \
     libpq-dev \
-    libffi-dev \
-    tesseract-ocr \
-    tesseract-ocr-eng \
-    libtesseract-dev \
-    libleptonica-dev \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender1 \
-    libgomp1 && \
+    libffi-dev && \
     rm -rf /var/lib/apt/lists/*
-
-# Set environment variables for OCR libraries
-ENV TESSDATA_PREFIX=/usr/share/tesseract-ocr/4.00/tessdata
-ENV LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu
 
 WORKDIR /app
 

@@ -4,16 +4,7 @@ from .openai_service import OpenAIService
 from .ai_assistant_service import AIAssistantService
 from .command_processor_service import UMLCommandProcessorService
 from .incremental_command_processor import IncrementalCommandProcessor
-from .image_processor_service import (
-    ImageProcessorService,
-    OCRLibrariesUnavailableError,
-    get_image_processor_service,
-)
-from .image_validator import ImageValidator
-from .ocr_engine import OCREngine
-from .yolo_detector import YOLODetector
-from .uml_parser import UMLParser
-from .position_calculator import PositionCalculator
+from .qwen_vision_service import QwenVisionService, ImageValidationError
 
 __all__ = [
     "CacheService",
@@ -22,12 +13,6 @@ __all__ = [
     "AIAssistantService",
     "UMLCommandProcessorService",
     "IncrementalCommandProcessor",
-    "ImageProcessorService",
-    "OCRLibrariesUnavailableError",
-    "get_image_processor_service",
-    "ImageValidator",
-    "OCREngine",
-    "YOLODetector",
-    "UMLParser",
-    "PositionCalculator",
+    "QwenVisionService",
+    "ImageValidationError",
 ]

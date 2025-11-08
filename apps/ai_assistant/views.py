@@ -10,8 +10,8 @@ from base.settings import env
 from .services import (
     AIAssistantService,
     UMLCommandProcessorService,
-    get_image_processor_service,
-    OCRLibrariesUnavailableError,
+    QwenVisionService,
+    ImageValidationError,
     IncrementalCommandProcessor,
 )
 from .serializers import (
@@ -504,9 +504,10 @@ def get_supported_commands(request):
 @permission_classes([AllowAny])
 @throttle_classes([AIAssistantRateThrottle])
 def process_diagram_image(request):
-    """Process UML diagram image using local OCR.
+    """Process UML diagram image using Qwen3-VL Vision API.
     
     Extracts classes, attributes, methods and relationships from image.
+    Cost: ~$0.0014 per image (~0.14 cents)
     """
     import time
     start_time = time.time()
@@ -520,15 +521,15 @@ def process_diagram_image(request):
                 'error': 'Missing required field: image'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        processor = get_image_processor_service()
-        result = processor.process_image(
+        # Use Qwen3-VL Vision API
+        vision_service = QwenVisionService()
+        result = vision_service.process_uml_diagram_image(
             base64_image=image_data,
-            session_id=session_id,
-            use_cache=True
+            session_id=session_id
         )
         
         processing_time = int((time.time() - start_time) * 1000)
-        logger.info(f"Image processed in {processing_time}ms: {len(result['nodes'])} classes")
+        logger.info(f"Image processed in {processing_time}ms: {len(result.get('nodes', []))} classes")
         
         return Response({
             'success': True,
@@ -536,18 +537,15 @@ def process_diagram_image(request):
             'processing_time_ms': processing_time
         }, status=status.HTTP_200_OK)
         
-    except OCRLibrariesUnavailableError as e:
-        logger.warning(f"OCR libraries unavailable: {str(e)}")
-        response = Response({
-            'error': 'Service temporarily unavailable',
-            'message': str(e),
-            'details': 'Image processing requires system libraries (OpenCV, Tesseract) that are not currently installed. Please contact the system administrator.'
-        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        response['Retry-After'] = '3600'  # Suggest retry after 1 hour
-        return response
+    except ImageValidationError as e:
+        logger.warning(f"Image validation failed: {str(e)}")
+        return Response({
+            'error': 'Invalid image',
+            'message': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
         
     except Exception as e:
-        logger.error(f"Image processing failed: {str(e)}")
+        logger.error(f"Image processing failed: {str(e)}", exc_info=True)
         return Response({
             'error': 'Image processing failed',
             'message': str(e)
@@ -574,13 +572,12 @@ def process_diagram_image(request):
 @permission_classes([AllowAny])
 @throttle_classes([AIAssistantRateThrottle])
 def update_diagram_from_image(request, diagram_id):
-    """Update existing diagram by merging with image OCR results."""
+    """Extract UML elements from image (merging done client-side)."""
     import time
     start_time = time.time()
     
     try:
         image_data = request.data.get('image')
-        existing_diagram = request.data.get('existing_diagram', {})
         session_id = request.data.get('session_id', 'anonymous')
         
         if not image_data:
@@ -588,38 +585,34 @@ def update_diagram_from_image(request, diagram_id):
                 'error': 'Missing required field: image'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        processor = get_image_processor_service()
-        result = processor.process_image(
+        # Use Qwen3-VL Vision API (client merges results)
+        vision_service = QwenVisionService()
+        result = vision_service.process_uml_diagram_image(
             base64_image=image_data,
-            session_id=session_id,
-            use_cache=True,
-            merge_with_existing=True,
-            existing_diagram=existing_diagram
+            session_id=session_id
         )
         
         processing_time = int((time.time() - start_time) * 1000)
-        logger.info(f"Diagram merged in {processing_time}ms")
+        logger.info(f"Diagram extracted in {processing_time}ms for merge")
         
         return Response({
             'success': True,
             'data': result,
-            'processing_time_ms': processing_time
+            'processing_time_ms': processing_time,
+            'note': 'Client should merge nodes/edges with existing diagram'
         }, status=status.HTTP_200_OK)
         
-    except OCRLibrariesUnavailableError as e:
-        logger.warning(f"OCR libraries unavailable: {str(e)}")
-        response = Response({
-            'error': 'Service temporarily unavailable',
-            'message': str(e),
-            'details': 'Image processing requires system libraries (OpenCV, Tesseract) that are not currently installed. Please contact the system administrator.'
-        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
-        response['Retry-After'] = '3600'  # Suggest retry after 1 hour
-        return response
+    except ImageValidationError as e:
+        logger.warning(f"Image validation failed: {str(e)}")
+        return Response({
+            'error': 'Invalid image',
+            'message': str(e)
+        }, status=status.HTTP_400_BAD_REQUEST)
         
     except Exception as e:
-        logger.error(f"Diagram merge failed: {str(e)}")
+        logger.error(f"Diagram extraction failed: {str(e)}", exc_info=True)
         return Response({
-            'error': 'Diagram merge failed',
+            'error': 'Diagram extraction failed',
             'message': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
