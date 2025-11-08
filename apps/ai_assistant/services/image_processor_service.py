@@ -286,3 +286,25 @@ class ImageProcessorService:
                 "total_classes": len(merged_nodes),
             },
         }
+
+
+# Singleton instance
+_service_instance = None
+
+
+def get_image_processor_service() -> ImageProcessorService:
+    """
+    Get singleton instance of ImageProcessorService.
+    
+    This prevents repeated initialization and model downloads on every request.
+    EasyOCR models (300MB+) are downloaded only once at first use.
+    
+    Returns:
+        Singleton ImageProcessorService instance
+    """
+    global _service_instance
+    if _service_instance is None:
+        logger.info("Initializing ImageProcessorService singleton...")
+        _service_instance = ImageProcessorService()
+        logger.info("ImageProcessorService singleton initialized successfully")
+    return _service_instance

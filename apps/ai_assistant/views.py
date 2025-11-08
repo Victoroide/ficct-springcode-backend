@@ -10,7 +10,7 @@ from base.settings import env
 from .services import (
     AIAssistantService,
     UMLCommandProcessorService,
-    ImageProcessorService,
+    get_image_processor_service,
     OCRLibrariesUnavailableError,
     IncrementalCommandProcessor,
 )
@@ -520,7 +520,7 @@ def process_diagram_image(request):
                 'error': 'Missing required field: image'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        processor = ImageProcessorService()
+        processor = get_image_processor_service()
         result = processor.process_image(
             base64_image=image_data,
             session_id=session_id,
@@ -588,7 +588,7 @@ def update_diagram_from_image(request, diagram_id):
                 'error': 'Missing required field: image'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        processor = ImageProcessorService()
+        processor = get_image_processor_service()
         result = processor.process_image(
             base64_image=image_data,
             session_id=session_id,

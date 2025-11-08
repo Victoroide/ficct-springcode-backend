@@ -81,29 +81,37 @@ class OCREngine:
     def extract_text(self, image: np.ndarray) -> str:
         """
         Extract text from image using available OCR engines.
+        
+        Falls back through Tesseract -> EasyOCR -> empty string.
+        Never raises exception to allow graceful degradation.
 
         Args:
             image: Image as numpy array (BGR format from OpenCV)
 
         Returns:
-            Extracted text
-
-        Raises:
-            OCRFailedError: If no OCR engines available
+            Extracted text (empty string if all engines fail)
         """
+        # Try Tesseract first (faster)
         if self.tesseract_available:
             try:
-                return self._extract_with_tesseract(image)
+                result = self._extract_with_tesseract(image)
+                if result:
+                    return result
             except Exception as e:
-                logger.warning(f"Tesseract extraction failed: {e}")
+                logger.warning(f"Tesseract extraction failed: {e}", exc_info=True)
 
+        # Try EasyOCR second (more accurate but slower)
         if self.easyocr_available:
             try:
-                return self._extract_with_easyocr(image)
+                result = self._extract_with_easyocr(image)
+                if result:
+                    return result
             except Exception as e:
-                logger.warning(f"EasyOCR extraction failed: {e}")
+                logger.warning(f"EasyOCR extraction failed: {e}", exc_info=True)
 
-        raise OCRFailedError("No OCR engines available")
+        # Graceful degradation - return empty instead of crashing
+        logger.error("All OCR engines failed - returning empty text")
+        return ""
 
     def extract_with_boxes(
         self, image: np.ndarray
@@ -139,12 +147,15 @@ class OCREngine:
     def preprocess_image(self, image: np.ndarray) -> np.ndarray:
         """
         Preprocess image for better OCR accuracy.
+        
+        Handles various image formats gracefully. If preprocessing fails,
+        returns original image to allow OCR to attempt extraction anyway.
 
         Args:
             image: Original image
 
         Returns:
-            Preprocessed image
+            Preprocessed image (or original if preprocessing fails)
 
         Steps:
             1. Convert to grayscale
@@ -152,23 +163,48 @@ class OCREngine:
             3. Apply adaptive thresholding
             4. Apply morphological operations
         """
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        try:
+            # Check if image is already grayscale or needs conversion
+            if len(image.shape) == 2:
+                # Already grayscale (1 channel)
+                gray = image
+            elif len(image.shape) == 3:
+                channels = image.shape[2]
+                if channels == 1:
+                    # Grayscale with explicit channel dimension
+                    gray = image.squeeze()
+                elif channels == 3:
+                    # BGR image, convert to grayscale
+                    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+                elif channels == 4:
+                    # BGRA image, convert to grayscale
+                    gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
+                else:
+                    logger.warning(f"Unexpected number of channels: {channels}, using original")
+                    return image
+            else:
+                logger.warning(f"Unexpected image shape: {image.shape}, using original")
+                return image
 
-        denoised = cv2.fastNlMeansDenoising(gray, None, 10, 7, 21)
+            denoised = cv2.fastNlMeansDenoising(gray, None, 10, 7, 21)
 
-        thresh = cv2.adaptiveThreshold(
-            denoised,
-            255,
-            cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
-            cv2.THRESH_BINARY,
-            11,
-            2,
-        )
+            thresh = cv2.adaptiveThreshold(
+                denoised,
+                255,
+                cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+                cv2.THRESH_BINARY,
+                11,
+                2,
+            )
 
-        kernel = np.ones((1, 1), np.uint8)
-        processed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
+            kernel = np.ones((1, 1), np.uint8)
+            processed = cv2.morphologyEx(thresh, cv2.MORPH_CLOSE, kernel)
 
-        return processed
+            return processed
+            
+        except Exception as e:
+            logger.warning(f"Image preprocessing failed: {e}, using original image", exc_info=True)
+            return image
 
     def _extract_with_tesseract(self, image: np.ndarray) -> str:
         """Extract text using Tesseract."""
