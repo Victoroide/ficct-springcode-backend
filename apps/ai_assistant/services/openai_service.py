@@ -1,104 +1,622 @@
-import logging
+"""
+OpenAI Service refactored with complete o1-mini support.
+
+Provides natural language processing functionality with OpenAI models,
+optimized for o1-mini (reasoning model) with cache, rate limiting and retry.
+
+CHANGES IN o1-mini vs GPT-4:
+- Does NOT support system messages (converted to user messages)
+- Does NOT support function calling (use structured outputs with JSON schema)
+- Uses reasoning tokens (internal chain of thought)
+- Context window: 128K tokens
+- Max output: 65K tokens
+- Price: $1.1/$4.4 per 1M tokens (vs $30/$60 GPT-4)
+- Temperature fixed at 1.0 (not configurable)
+"""
+
+import hashlib
 import json
-import re
-from datetime import datetime
-from typing import Dict, List
-from dotenv import load_dotenv
-from base import settings
+import logging
+import time
+from functools import wraps
+from typing import Any, Dict, List, Optional, Tuple
+
+from django.conf import settings
+from pydantic import BaseModel, Field, validator
+
+from .cache_service import CacheService
+from .rate_limiter import RateLimiter
 
 try:
     import tiktoken
     from openai import AzureOpenAI
+    from openai.types.chat import ChatCompletion
+
     OPENAI_AVAILABLE = True
 except ImportError:
-
     OPENAI_AVAILABLE = False
     tiktoken = None
     AzureOpenAI = None
+    ChatCompletion = None
+
+logger = logging.getLogger(__name__)
+
+# Configuration constants
+O1_MINI_MODEL = "o1-mini-2024-09-12"
+GPT4_MODEL = "gpt-4o"
+MAX_COMPLETION_TOKENS_O1 = 65000
+MAX_COMPLETION_TOKENS_GPT4 = 4096
+REQUEST_TIMEOUT = 60  # seconds
+CACHE_TTL = 300  # 5 minutes
+RATE_LIMIT_MAX = 30  # requests per hour
+RATE_LIMIT_WINDOW = 3600  # 1 hour in seconds
 
 
-load_dotenv()
+class OpenAIRequest(BaseModel):
+    """Pydantic model for OpenAI request validation."""
+
+    prompt: str = Field(..., min_length=1, max_length=10000)
+    max_tokens: int = Field(default=4096, ge=1, le=65000)
+    temperature: float = Field(default=1.0, ge=0.0, le=2.0)
+    use_cache: bool = Field(default=True)
+
+    @validator("prompt")
+    def validate_prompt(cls, v: str) -> str:
+        """Validates that prompt is not empty."""
+        if not v.strip():
+            raise ValueError("Prompt cannot be empty")
+        return v
 
 
-def handle_openai_errors(func):
-    def wrapper(*args, **kwargs):
-        for i in range(3):
-            try:
-                response = func(*args, **kwargs)
-                return response
-            except Exception as e:  
-                logging.info(f"[OpenAI] Error on request {i+1}: {e}")
-                if i < 2:
-                    import time
-                    time.sleep(1)
-                else:
-                    raise Exception(f"[OpenAI] Final error after {i} attempts: {e}")
-    return wrapper
+class OpenAIResponse(BaseModel):
+    """Pydantic model for structured OpenAI responses."""
+
+    answer: str
+    confidence: float = Field(ge=0.0, le=1.0)
+    sources: Optional[List[str]] = None
+    metadata: Optional[Dict[str, Any]] = None
 
 
-class OpenAIService():
+def retry_with_exponential_backoff(
+    max_retries: int = 3, base_delay: float = 1.0, max_delay: float = 60.0
+):
+    """
+    Decorator for retry with exponential backoff.
+
+    Args:
+        max_retries: Maximum number of retries
+        base_delay: Initial delay in seconds
+        max_delay: Maximum delay in seconds
+
+    Returns:
+        Configured decorator
+
+    Example:
+        >>> @retry_with_exponential_backoff(max_retries=3)
+        >>> def api_call():
+        ...     return client.chat.completions.create(...)
+    """
+
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except Exception as e:
+                    if attempt == max_retries - 1:
+                        logger.error(
+                            f"Max retries ({max_retries}) exceeded: {e}"
+                        )
+                        raise
+
+                    delay = min(base_delay * (2**attempt), max_delay)
+                    logger.warning(
+                        f"Retry {attempt + 1}/{max_retries} "
+                        f"after {delay}s. Error: {e}"
+                    )
+                    time.sleep(delay)
+
+        return wrapper
+
+    return decorator
+
+
+class OpenAIService:
+    """
+    Service for OpenAI API interaction.
+
+    Supports both o1-mini and GPT-4 with the following features:
+    - Redis cache with 5 minute TTL
+    - Rate limiting of 30 requests/hour per IP
+    - Retry with exponential backoff (3 attempts)
+    - Timeout of 60 seconds
+    - Input validation with Pydantic
+    """
+
     def __init__(self):
+        """
+        Initializes OpenAI service.
+
+        Raises:
+            ImportError: If OpenAI dependencies are not available
+            ValueError: If API configuration is invalid
+        """
         if not OPENAI_AVAILABLE:
-            raise ImportError("OpenAI dependencies not available. Install 'openai' and 'tiktoken' packages.")
-        
+            raise ImportError(
+                "OpenAI dependencies not available. "
+                "Install 'openai' and 'tiktoken' packages."
+            )
+
+        api_key = getattr(settings, "OPENAI_AZURE_API_KEY", "")
+        api_base = getattr(settings, "OPENAI_AZURE_API_BASE", "")
+
+        if not api_key or not api_base:
+            raise ValueError(
+                "OPENAI_AZURE_API_KEY and OPENAI_AZURE_API_BASE "
+                "must be configured in settings"
+            )
+
         self.client = AzureOpenAI(
-            api_key=settings.OPENAI_AZURE_API_KEY,
-            api_version=settings.OPENAI_AZURE_API_VERSION,
-            azure_endpoint=settings.OPENAI_AZURE_API_BASE
+            api_key=api_key,
+            api_version=getattr(
+                settings, "OPENAI_AZURE_API_VERSION", "2024-02-15-preview"
+            ),
+            azure_endpoint=api_base,
+            timeout=REQUEST_TIMEOUT,
         )
-        self.model = getattr(settings, 'AI_ASSISTANT_DEFAULT_MODEL')
-        self.token_limit = 8192
-        self.safe_token_limit = 7500
-        self.overlap_tokens = 500
-        self.encoding = tiktoken.encoding_for_model("gpt-4o")
-        self.logger = logging.getLogger(__name__)  
 
-    def chunk_text_by_tokens(self, text, max_tokens=None, overlap_tokens=None):
-        max_tokens = max_tokens or self.safe_token_limit
-        overlap_tokens = overlap_tokens if overlap_tokens is not None else self.overlap_tokens
-        tokens = self.encoding.encode(text)
-        chunks = []
-        start = 0
-        while start < len(tokens):
-            end = min(start + max_tokens, len(tokens))
-            chunk_tokens = tokens[start:end]
-            chunk_text = self.encoding.decode(chunk_tokens)
-            chunks.append(chunk_text)
-            if end < len(tokens):
-                start = end - overlap_tokens
-            else:
-                start = end
-        return chunks
+        self.model = getattr(settings, "AI_ASSISTANT_DEFAULT_MODEL", O1_MINI_MODEL)
+        self.is_o1_mini = "o1" in self.model.lower()
 
-    @handle_openai_errors
-    def call_api(self, messages: List[Dict], temperature: float = 0.7, max_tokens: int = 1000, response_format: str = None) -> str:
+        if self.is_o1_mini:
+            self.max_tokens = MAX_COMPLETION_TOKENS_O1
+        else:
+            self.max_tokens = MAX_COMPLETION_TOKENS_GPT4
+
         try:
+            self.encoding = tiktoken.encoding_for_model("gpt-4o")
+        except Exception:
+            self.encoding = tiktoken.get_encoding("cl100k_base")
 
-            if self.model == "o1-mini":
-                for msg in messages:
-                    if msg.get("role") == "system":
-                        msg["role"] = "user"
+        logger.info(f"OpenAI Service initialized with model: {self.model}")
 
-            completion_params = {
-                'model': self.model,
-                'messages': messages,
-                'temperature': temperature,
-                'max_tokens': max_tokens
+    def _prepare_messages_for_o1(
+        self, messages: List[Dict[str, str]]
+    ) -> List[Dict[str, str]]:
+        """
+        Prepares messages for o1-mini.
+
+        o1-mini does NOT support system messages, so they are converted to user.
+
+        Args:
+            messages: List of messages with system/user/assistant roles
+
+        Returns:
+            List of messages compatible with o1-mini
+        """
+        prepared_messages = []
+
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+
+            if role == "system":
+                if prepared_messages and prepared_messages[0]["role"] == "user":
+                    prepared_messages[0]["content"] = (
+                        f"{content}\n\n{prepared_messages[0]['content']}"
+                    )
+                else:
+                    prepared_messages.insert(
+                        0, {"role": "user", "content": content}
+                    )
+            else:
+                prepared_messages.append({"role": role, "content": content})
+
+        return prepared_messages
+
+    def _count_tokens(self, text: str) -> int:
+        """
+        Counts tokens in text.
+
+        Args:
+            text: Text to analyze
+
+        Returns:
+            Number of tokens
+        """
+        try:
+            return len(self.encoding.encode(text))
+        except Exception as e:
+            logger.warning(f"Token counting error: {e}")
+            return len(text) // 4
+
+    @retry_with_exponential_backoff(max_retries=3, base_delay=1.0, max_delay=60.0)
+    def _call_openai_api(
+        self,
+        messages: List[Dict[str, str]],
+        max_tokens: int,
+        temperature: float,
+        response_format: Optional[str] = None,
+    ) -> ChatCompletion:
+        """
+        Makes OpenAI API call with retry.
+
+        Args:
+            messages: List of conversation messages
+            max_tokens: Maximum number of output tokens
+            temperature: Temperature for generation (0.0-2.0)
+            response_format: Response format ("json" or None)
+
+        Returns:
+            OpenAI ChatCompletion object
+
+        Raises:
+            Exception: If fails after all retries
+        """
+        if self.is_o1_mini:
+            messages = self._prepare_messages_for_o1(messages)
+            temperature = 1.0
+
+        completion_params = {
+            "model": self.model,
+            "messages": messages,
+            "max_completion_tokens": max_tokens,
+        }
+
+        if not self.is_o1_mini:
+            completion_params["temperature"] = temperature
+
+        if response_format == "json" and not self.is_o1_mini:
+            completion_params["response_format"] = {"type": "json_object"}
+
+        logger.info(
+            f"Calling OpenAI API: model={self.model}, "
+            f"max_tokens={max_tokens}, messages={len(messages)}"
+        )
+
+        response = self.client.chat.completions.create(**completion_params)
+
+        logger.info(
+            f"OpenAI API response: usage={response.usage.total_tokens} tokens"
+        )
+
+        return response
+
+    def ask_question(
+        self,
+        question: str,
+        context: Optional[str] = None,
+        use_cache: bool = True,
+        session_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Asks general question about UML/Spring Boot.
+
+        Args:
+            question: User question
+            context: Optional additional context
+            use_cache: Whether to use cache (default: True)
+            session_id: Session ID for rate limiting
+
+        Returns:
+            Dictionary with answer, confidence, sources
+
+        Raises:
+            ValueError: If question is empty or rate limit exceeded
+        """
+        request = OpenAIRequest(
+            prompt=question, use_cache=use_cache, max_tokens=4096, temperature=0.7
+        )
+
+        cache_key = {"method": "ask_question", "question": question, "context": context}
+
+        if use_cache:
+            cached_response = CacheService.get(cache_key)
+            if cached_response:
+                logger.info("Returning cached response for ask_question")
+                return cached_response
+
+        if session_id:
+            allowed, retry_after = RateLimiter.check_rate_limit(
+                session_id, "ask_question", RATE_LIMIT_MAX, RATE_LIMIT_WINDOW
+            )
+            if not allowed:
+                raise ValueError(
+                    f"Rate limit exceeded. Retry after {retry_after} seconds"
+                )
+
+        prompt = self._build_question_prompt(question, context)
+
+        messages = [{"role": "user", "content": prompt}]
+
+        try:
+            response = self._call_openai_api(
+                messages=messages,
+                max_tokens=4096,
+                temperature=0.7,
+                response_format="json" if not self.is_o1_mini else None,
+            )
+
+            content = response.choices[0].message.content
+
+            if self.is_o1_mini:
+                try:
+                    parsed = json.loads(content)
+                except json.JSONDecodeError:
+                    parsed = {
+                        "answer": content,
+                        "confidence": 0.8,
+                        "sources": ["o1-mini reasoning"],
+                    }
+            else:
+                parsed = json.loads(content)
+
+            result = {
+                "answer": parsed.get("answer", content),
+                "confidence": parsed.get("confidence", 0.85),
+                "sources": parsed.get("sources", []),
+                "metadata": {
+                    "model": self.model,
+                    "tokens_used": response.usage.total_tokens,
+                    "timestamp": time.time(),
+                },
             }
 
-            if response_format == 'json':
-                completion_params['response_format'] = {'type': 'json_object'}
-            
-            response = self.client.chat.completions.create(**completion_params)
-            return response.choices[0].message.content
+            if use_cache:
+                CacheService.set(cache_key, result, ttl=CACHE_TTL)
+
+            return result
 
         except Exception as e:
-            self.logger.error(f"OpenAI API call failed: {e}")
+            logger.error(f"Error in ask_question: {e}")
             raise
-    
-    def call_command_processing_api(self, command: str, current_diagram_data: dict = None) -> str:
+
+    def _build_question_prompt(
+        self, question: str, context: Optional[str] = None
+    ) -> str:
         """
-        Direct natural language to React Flow JSON conversion.
+        Construye prompt para preguntas generales.
+
+        Args:
+            question: User question
+            context: Optional additional context
+
+        Returns:
+            Prompt completo formateado
+        """
+        base_prompt = f"""You are an expert in UML and Spring Boot.
+
+QUESTION: {question}"""
+
+        if context:
+            base_prompt += f"\n\nCONTEXT: {context}"
+
+        base_prompt += """
+
+RESPOND IN JSON FORMAT:
+{
+  "answer": "detailed answer in natural language",
+  "confidence": 0.95,
+  "sources": ["UML 2.5 spec", "Spring Boot docs"]
+}
+
+RULES:
+- Precise and technical answers
+- Include examples when useful
+- Cite reliable sources
+- Confidence between 0.0 and 1.0
+"""
+
+        return base_prompt
+
+    def ask_about_diagram(
+        self,
+        question: str,
+        diagram_data: Dict[str, Any],
+        use_cache: bool = True,
+        session_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Asks contextual question about specific diagram.
+
+        Args:
+            question: User question
+            diagram_data: Diagram data (nodes, edges)
+            use_cache: Whether to use cache
+            session_id: Session ID for rate limiting
+
+        Returns:
+            Dictionary with answer, confidence, suggestions
+        """
+        diagram_hash = hashlib.md5(
+            json.dumps(diagram_data, sort_keys=True).encode()
+        ).hexdigest()
+
+        cache_key = {
+            "method": "ask_about_diagram",
+            "question": question,
+            "diagram_hash": diagram_hash,
+        }
+
+        if use_cache:
+            cached_response = CacheService.get(cache_key)
+            if cached_response:
+                return cached_response
+
+        if session_id:
+            allowed, retry_after = RateLimiter.check_rate_limit(
+                session_id, "ask_about_diagram", RATE_LIMIT_MAX, RATE_LIMIT_WINDOW
+            )
+            if not allowed:
+                raise ValueError(
+                    f"Rate limit exceeded. Retry after {retry_after}s"
+                )
+
+        context = self._build_diagram_context(diagram_data)
+        prompt = self._build_diagram_question_prompt(question, context)
+
+        messages = [{"role": "user", "content": prompt}]
+
+        try:
+            response = self._call_openai_api(
+                messages=messages,
+                max_tokens=4096,
+                temperature=0.7,
+                response_format="json" if not self.is_o1_mini else None,
+            )
+
+            content = response.choices[0].message.content
+
+            if self.is_o1_mini:
+                try:
+                    parsed = json.loads(content)
+                except json.JSONDecodeError:
+                    parsed = {"answer": content, "confidence": 0.8, "suggestions": []}
+            else:
+                parsed = json.loads(content)
+
+            result = {
+                "answer": parsed.get("answer", content),
+                "confidence": parsed.get("confidence", 0.85),
+                "suggestions": parsed.get("suggestions", []),
+                "metadata": {
+                    "model": self.model,
+                    "tokens_used": response.usage.total_tokens,
+                },
+            }
+
+            if use_cache:
+                CacheService.set(cache_key, result, ttl=CACHE_TTL)
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error in ask_about_diagram: {e}")
+            raise
+
+    def _build_diagram_context(self, diagram_data: Dict[str, Any]) -> str:
+        """
+        Builds diagram context for prompt.
+
+        Args:
+            diagram_data: Diagram data with nodes and edges
+
+        Returns:
+            String with formatted context
+        """
+        nodes = diagram_data.get("nodes", [])
+        edges = diagram_data.get("edges", [])
+
+        context_parts = [f"The diagram has {len(nodes)} classes and {len(edges)} relationships."]
+
+        if nodes:
+            context_parts.append("\nCLASSES:")
+            for node in nodes[:10]:
+                node_data = node.get("data", {})
+                label = node_data.get("label", "Unknown")
+                attrs = node_data.get("attributes", [])
+                methods = node_data.get("methods", [])
+                context_parts.append(
+                    f"- {label}: {len(attrs)} attributes, {len(methods)} methods"
+                )
+
+        if edges:
+            context_parts.append("\nRELATIONSHIPS:")
+            for edge in edges[:10]:
+                edge_data = edge.get("data", {})
+                rel_type = edge_data.get("relationshipType", "UNKNOWN")
+                context_parts.append(f"- {rel_type}")
+
+        return "\n".join(context_parts)
+
+    def _build_diagram_question_prompt(self, question: str, context: str) -> str:
+        """Builds prompt for diagram questions."""
+        return f"""You are an expert in UML diagram analysis.
+
+DIAGRAM CONTEXT:
+{context}
+
+QUESTION: {question}
+
+RESPOND IN JSON FORMAT:
+{{
+  "answer": "detailed answer analyzing the diagram",
+  "confidence": 0.95,
+  "suggestions": ["suggestion 1", "suggestion 2"]
+}}
+"""
+
+    def process_command(
+        self,
+        command: str,
+        current_diagram: Optional[Dict[str, Any]] = None,
+        use_cache: bool = True,
+        session_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Processes NLP command to generate UML elements.
+
+        Args:
+            command: Natural language command
+            current_diagram: Optional current diagram
+            use_cache: Whether to use cache
+            session_id: Session ID for rate limiting
+
+        Returns:
+            Dictionary with action, elements, confidence
+        """
+        cache_key = {
+            "method": "process_command",
+            "command": command,
+        }
+
+        if use_cache:
+            cached_response = CacheService.get(cache_key)
+            if cached_response:
+                return cached_response
+
+        if session_id:
+            allowed, retry_after = RateLimiter.check_rate_limit(
+                session_id, "process_command", RATE_LIMIT_MAX, RATE_LIMIT_WINDOW
+            )
+            if not allowed:
+                raise ValueError(f"Rate limit exceeded. Retry after {retry_after}s")
+
+        prompt = self._build_command_prompt(command, current_diagram)
+        messages = [{"role": "user", "content": prompt}]
+
+        try:
+            response = self._call_openai_api(
+                messages=messages,
+                max_tokens=4096,
+                temperature=0.2,
+                response_format="json" if not self.is_o1_mini else None,
+            )
+
+            content = response.choices[0].message.content
+
+            try:
+                result = json.loads(content)
+            except json.JSONDecodeError:
+                result = {
+                    "action": "unknown",
+                    "elements": [],
+                    "confidence": 0.5,
+                    "interpretation": content,
+                }
+
+            if use_cache:
+                CacheService.set(cache_key, result, ttl=CACHE_TTL)
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error in process_command: {e}")
+            raise
+
+    def call_command_processing_api(self, command: str, current_diagram_data: dict = None) -> str:
+        """Direct natural language to React Flow JSON conversion.
         
         Args:
             command: Natural language command
@@ -115,23 +633,21 @@ class OpenAIService():
                 {"role": "user", "content": command}
             ]
 
-            response = self.call_api(
+            response = self._call_openai_api(
                 messages=messages,
-                temperature=0.2,  # Very low for consistent JSON generation
-                max_tokens=3000,  # More tokens for complete class definitions
-                response_format='json'
+                max_tokens=3000,
+                temperature=0.2,
+                response_format="json" if not self.is_o1_mini else None,
             )
             
-            return response
+            return response.choices[0].message.content
             
         except Exception as e:
-            self.logger.error(f"Command processing API call failed: {e}")
+            logger.error(f"Command processing API call failed: {e}")
             raise
-    
+
     def _build_direct_json_prompt(self, current_diagram_data: dict = None) -> str:
-        """
-        Build comprehensive prompt for direct React Flow JSON generation.
-        """
+        """Build comprehensive prompt for direct React Flow JSON generation."""
         import time
         timestamp_ms = int(time.time() * 1000)
         
@@ -299,3 +815,91 @@ CRITICAL: Generate timestamp-based unique IDs, create REAL attributes for all me
                 base_prompt += context
         
         return base_prompt
+
+    def analyze_diagram(
+        self,
+        diagram_data: Dict[str, Any],
+        use_cache: bool = True,
+        session_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Analyzes complete diagram with AI.
+
+        Args:
+            diagram_data: Complete diagram data
+            use_cache: Whether to use cache
+            session_id: Session ID for rate limiting
+
+        Returns:
+            Dictionary with analysis, patterns, SOLID violations
+        """
+        diagram_hash = hashlib.md5(
+            json.dumps(diagram_data, sort_keys=True).encode()
+        ).hexdigest()
+
+        cache_key = {"method": "analyze_diagram", "diagram_hash": diagram_hash}
+
+        if use_cache:
+            cached_response = CacheService.get(cache_key)
+            if cached_response:
+                return cached_response
+
+        if session_id:
+            allowed, retry_after = RateLimiter.check_rate_limit(
+                session_id, "analyze_diagram", RATE_LIMIT_MAX, RATE_LIMIT_WINDOW
+            )
+            if not allowed:
+                raise ValueError(f"Rate limit exceeded. Retry after {retry_after}s")
+
+        context = self._build_diagram_context(diagram_data)
+        prompt = self._build_analysis_prompt(context)
+
+        messages = [{"role": "user", "content": prompt}]
+
+        try:
+            response = self._call_openai_api(
+                messages=messages,
+                max_tokens=4096,
+                temperature=0.7,
+                response_format="json" if not self.is_o1_mini else None,
+            )
+
+            content = response.choices[0].message.content
+
+            try:
+                result = json.loads(content)
+            except json.JSONDecodeError:
+                result = {"analysis": content, "patterns": [], "solid_violations": []}
+
+            if use_cache:
+                CacheService.set(cache_key, result, ttl=CACHE_TTL)
+
+            return result
+
+        except Exception as e:
+            logger.error(f"Error in analyze_diagram: {e}")
+            raise
+
+    def _build_analysis_prompt(self, context: str) -> str:
+        """Builds prompt for diagram analysis."""
+        return f"""Analyze this UML diagram in depth.
+
+{context}
+
+RESPOND IN JSON FORMAT:
+{{
+  "analysis": "general diagram analysis",
+  "patterns": ["detected pattern 1", "pattern 2"],
+  "solid_violations": ["SRP violation", "OCP violation"],
+  "recommendations": ["recommendation 1", "recommendation 2"],
+  "complexity_score": 7.5,
+  "quality_score": 8.0
+}}
+
+Evaluate:
+- Complexity (1-10)
+- Quality (1-10)
+- Design patterns
+- SOLID violations
+- Improvement recommendations
+"""

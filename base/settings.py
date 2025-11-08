@@ -40,6 +40,7 @@ LOCAL_APPS = [
     'apps.uml_diagrams',
     'apps.websockets',
     'apps.ai_assistant',
+    'apps.flutter_projects',
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS

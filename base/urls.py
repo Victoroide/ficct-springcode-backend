@@ -84,6 +84,7 @@ urlpatterns = [
     path('api/', api_info, name='api_info'),
     path('api/diagrams/', include('apps.uml_diagrams.urls', namespace='uml_diagrams')),
     path('api/ai-assistant/', include('apps.ai_assistant.urls', namespace='ai_assistant')),
+    path('api/', include('apps.flutter_projects.urls')),
 
     path('', lambda request: serve_static_file(request, 'index.html'), name='home'),
     path('editor/<uuid:diagram_id>/', lambda request, diagram_id: serve_static_file(request, 'editor.html'), name='editor'),

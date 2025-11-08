@@ -7,7 +7,12 @@ from rest_framework.throttling import AnonRateThrottle
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 from base.settings import env
-from .services import AIAssistantService, UMLCommandProcessorService
+from .services import (
+    AIAssistantService,
+    UMLCommandProcessorService,
+    ImageProcessorService,
+    IncrementalCommandProcessor,
+)
 from .serializers import (
     AIAssistantQuestionSerializer,
     AIAssistantResponseSerializer,
@@ -475,4 +480,194 @@ def get_supported_commands(request):
     except Exception as e:
         return Response({
             'error': 'Internal server error'
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(
+    tags=['AI Assistant - Image Processing'],
+    summary='Process UML Diagram from Image',
+    description='Extract UML diagram from uploaded image using local OCR (Tesseract + EasyOCR + YOLO)',
+    request={
+        'application/json': {
+            'type': 'object',
+            'properties': {
+                'image': {'type': 'string', 'description': 'Base64 encoded image'},
+                'session_id': {'type': 'string', 'description': 'Anonymous session ID'}
+            },
+            'required': ['image']
+        }
+    },
+    responses={200: {'type': 'object'}}
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([AIAssistantRateThrottle])
+def process_diagram_image(request):
+    """Process UML diagram image using local OCR.
+    
+    Extracts classes, attributes, methods and relationships from image.
+    """
+    import time
+    start_time = time.time()
+    
+    try:
+        image_data = request.data.get('image')
+        session_id = request.data.get('session_id', 'anonymous')
+        
+        if not image_data:
+            return Response({
+                'error': 'Missing required field: image'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        processor = ImageProcessorService()
+        result = processor.process_image(
+            base64_image=image_data,
+            session_id=session_id,
+            use_cache=True
+        )
+        
+        processing_time = int((time.time() - start_time) * 1000)
+        logger.info(f"Image processed in {processing_time}ms: {len(result['nodes'])} classes")
+        
+        return Response({
+            'success': True,
+            'data': result,
+            'processing_time_ms': processing_time
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Image processing failed: {str(e)}")
+        return Response({
+            'error': 'Image processing failed',
+            'message': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(
+    tags=['AI Assistant - Image Processing'],
+    summary='Update Diagram from Image',
+    description='Merge OCR results with existing UML diagram',
+    request={
+        'application/json': {
+            'type': 'object',
+            'properties': {
+                'image': {'type': 'string'},
+                'existing_diagram': {'type': 'object'},
+                'merge_strategy': {'type': 'string', 'enum': ['replace', 'append', 'smart_merge']}
+            }
+        }
+    },
+    responses={200: {'type': 'object'}}
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([AIAssistantRateThrottle])
+def update_diagram_from_image(request, diagram_id):
+    """Update existing diagram by merging with image OCR results."""
+    import time
+    start_time = time.time()
+    
+    try:
+        image_data = request.data.get('image')
+        existing_diagram = request.data.get('existing_diagram', {})
+        session_id = request.data.get('session_id', 'anonymous')
+        
+        if not image_data:
+            return Response({
+                'error': 'Missing required field: image'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        processor = ImageProcessorService()
+        result = processor.process_image(
+            base64_image=image_data,
+            session_id=session_id,
+            use_cache=True,
+            merge_with_existing=True,
+            existing_diagram=existing_diagram
+        )
+        
+        processing_time = int((time.time() - start_time) * 1000)
+        logger.info(f"Diagram merged in {processing_time}ms")
+        
+        return Response({
+            'success': True,
+            'data': result,
+            'processing_time_ms': processing_time
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Diagram merge failed: {str(e)}")
+        return Response({
+            'error': 'Diagram merge failed',
+            'message': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(
+    tags=['AI Assistant - Incremental Commands'],
+    summary='Process Incremental UML Command',
+    description='Execute bilingual (English/Spanish) UML modification command and return DELTA',
+    request={
+        'application/json': {
+            'type': 'object',
+            'properties': {
+                'command': {'type': 'string', 'description': 'Natural language command'},
+                'diagram_id': {'type': 'string', 'format': 'uuid'},
+                'current_diagram': {'type': 'object', 'description': 'Current diagram state'}
+            },
+            'required': ['command', 'current_diagram']
+        }
+    },
+    responses={200: {'type': 'object'}}
+)
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([AIAssistantRateThrottle])
+def process_incremental_command(request):
+    """Process incremental UML modification command (English or Spanish).
+    
+    Returns DELTA with only the changes to apply.
+    """
+    import time
+    start_time = time.time()
+    
+    try:
+        command = request.data.get('command')
+        diagram_id = request.data.get('diagram_id', 'temp')
+        current_diagram = request.data.get('current_diagram', {})
+        session_id = request.data.get('session_id', 'anonymous')
+        
+        if not command:
+            return Response({
+                'error': 'Missing required field: command'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        if not current_diagram:
+            return Response({
+                'error': 'Missing required field: current_diagram'
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        processor = IncrementalCommandProcessor()
+        delta = processor.process_command(
+            command=command,
+            diagram_id=diagram_id,
+            current_diagram=current_diagram,
+            use_cache=True,
+            session_id=session_id
+        )
+        
+        processing_time = int((time.time() - start_time) * 1000)
+        logger.info(f"Command processed in {processing_time}ms: {delta['action']}")
+        
+        return Response({
+            'success': True,
+            'delta': delta,
+            'processing_time_ms': processing_time
+        }, status=status.HTTP_200_OK)
+        
+    except Exception as e:
+        logger.error(f"Command processing failed: {str(e)}")
+        return Response({
+            'error': 'Command processing failed',
+            'message': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
