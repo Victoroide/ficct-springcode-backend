@@ -35,6 +35,11 @@ RATE_LIMIT_IMAGES = 10
 RATE_LIMIT_WINDOW = 3600
 
 
+class OCRLibrariesUnavailableError(Exception):
+    """Raised when required OCR libraries are not installed."""
+    pass
+
+
 class ImageProcessorService:
     """
     Process UML diagram images using local OCR.
@@ -85,11 +90,21 @@ class ImageProcessorService:
             Dictionary with nodes, edges, and metadata
 
         Raises:
+            OCRLibrariesUnavailableError: If required OCR libraries not installed
             InvalidImageError: If image validation fails
             OCRFailedError: If OCR processing fails
             NoUMLDetectedError: If no UML elements detected
             ValueError: If rate limit exceeded
         """
+        # Check if required OCR libraries are available
+        if not CV2_AVAILABLE:
+            logger.error("Image processing attempted but OpenCV (cv2) not available")
+            raise OCRLibrariesUnavailableError(
+                "Image processing is temporarily unavailable. "
+                "Required system libraries (OpenCV, Tesseract) are not installed. "
+                "Please contact the system administrator or try again later."
+            )
+        
         start_time = time.time()
 
         is_valid, error = self.validator.validate_image(base64_image)

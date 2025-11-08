@@ -11,6 +11,7 @@ from .services import (
     AIAssistantService,
     UMLCommandProcessorService,
     ImageProcessorService,
+    OCRLibrariesUnavailableError,
     IncrementalCommandProcessor,
 )
 from .serializers import (
@@ -535,6 +536,16 @@ def process_diagram_image(request):
             'processing_time_ms': processing_time
         }, status=status.HTTP_200_OK)
         
+    except OCRLibrariesUnavailableError as e:
+        logger.warning(f"OCR libraries unavailable: {str(e)}")
+        response = Response({
+            'error': 'Service temporarily unavailable',
+            'message': str(e),
+            'details': 'Image processing requires system libraries (OpenCV, Tesseract) that are not currently installed. Please contact the system administrator.'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        response['Retry-After'] = '3600'  # Suggest retry after 1 hour
+        return response
+        
     except Exception as e:
         logger.error(f"Image processing failed: {str(e)}")
         return Response({
@@ -594,6 +605,16 @@ def update_diagram_from_image(request, diagram_id):
             'data': result,
             'processing_time_ms': processing_time
         }, status=status.HTTP_200_OK)
+        
+    except OCRLibrariesUnavailableError as e:
+        logger.warning(f"OCR libraries unavailable: {str(e)}")
+        response = Response({
+            'error': 'Service temporarily unavailable',
+            'message': str(e),
+            'details': 'Image processing requires system libraries (OpenCV, Tesseract) that are not currently installed. Please contact the system administrator.'
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+        response['Retry-After'] = '3600'  # Suggest retry after 1 hour
+        return response
         
     except Exception as e:
         logger.error(f"Diagram merge failed: {str(e)}")

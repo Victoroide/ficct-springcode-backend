@@ -4,7 +4,7 @@ from .openai_service import OpenAIService
 from .ai_assistant_service import AIAssistantService
 from .command_processor_service import UMLCommandProcessorService
 from .incremental_command_processor import IncrementalCommandProcessor
-from .image_processor_service import ImageProcessorService
+from .image_processor_service import ImageProcessorService, OCRLibrariesUnavailableError
 from .image_validator import ImageValidator
 from .ocr_engine import OCREngine
 from .yolo_detector import YOLODetector
@@ -19,6 +19,7 @@ __all__ = [
     "UMLCommandProcessorService",
     "IncrementalCommandProcessor",
     "ImageProcessorService",
+    "OCRLibrariesUnavailableError",
     "ImageValidator",
     "OCREngine",
     "YOLODetector",
