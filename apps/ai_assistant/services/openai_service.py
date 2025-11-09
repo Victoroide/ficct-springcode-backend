@@ -317,6 +317,45 @@ class OpenAIService:
 
         return response
 
+    def call_api(
+        self,
+        messages: List[Dict[str, str]],
+        max_tokens: int = 4096,
+        temperature: float = 0.7
+    ) -> str:
+        """
+        Generic API call method for AI Assistant service.
+
+        Args:
+            messages: List of conversation messages with role and content
+            max_tokens: Maximum tokens for response
+            temperature: Temperature for generation
+
+        Returns:
+            Response content as string
+
+        Raises:
+            Exception: If API call fails
+        """
+        try:
+            logger.info(f"Generic API call with {len(messages)} messages")
+            
+            response = self._call_openai_api(
+                messages=messages,
+                max_tokens=max_tokens,
+                temperature=temperature,
+                response_format=None
+            )
+            
+            content = response.choices[0].message.content
+            logger.info("Generic API call successful")
+            
+            return content
+            
+        except Exception as e:
+            logger.error(f"Generic API call failed: {e}", exc_info=True)
+            raise
+
     def ask_question(
         self,
         question: str,

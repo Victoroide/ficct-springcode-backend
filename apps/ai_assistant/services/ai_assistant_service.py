@@ -94,11 +94,15 @@ class AIAssistantService:
             return formatted_response
             
         except Exception as e:
-            self.logger.error(f"Error in get_contextual_help: {e}")
+            self.logger.error(f"Error in get_contextual_help: {e}", exc_info=True)
+            self.logger.error(f"Question was: {user_question}")
+            self.logger.error(f"Diagram ID: {diagram_id}, Context type: {context_type}")
             return {
                 "answer": "Lo siento, hubo un error al procesar tu pregunta. Por favor, inténtalo de nuevo.",
                 "suggestions": ["Reformular la pregunta", "Verificar conexión"],
-                "related_features": []
+                "related_features": [],
+                "error_type": str(type(e).__name__),
+                "error_message": str(e) if __debug__ else "Internal error"
             }
     
     def _get_diagram_data(self, diagram_id: str) -> Optional[Dict]:

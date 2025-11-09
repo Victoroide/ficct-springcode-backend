@@ -59,7 +59,7 @@ class AIAssistantRateThrottle(AnonRateThrottle):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
-@throttle_classes([AIAssistantRateThrottle])
+# @throttle_classes([AIAssistantRateThrottle])  # Disabled for debugging
 def ask_ai_assistant(request):
     """
     Main endpoint for asking AI assistant questions.
@@ -96,9 +96,13 @@ def ask_ai_assistant(request):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
     except Exception as e:
+        logger.error(f"AI Assistant ask endpoint error: {e}", exc_info=True)
+        logger.error(f"Request data: {request.data}")
         return Response({
             'error': 'Internal server error',
-            'message': 'Lo siento, hubo un error procesando tu pregunta. Por favor, inténtalo de nuevo.'
+            'message': 'Lo siento, hubo un error procesando tu pregunta. Por favor, inténtalo de nuevo.',
+            'error_type': str(type(e).__name__),
+            'error_details': str(e)
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -128,7 +132,7 @@ def ask_ai_assistant(request):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
-@throttle_classes([AIAssistantRateThrottle])
+# @throttle_classes([AIAssistantRateThrottle])  # Disabled for debugging
 def ask_about_diagram(request, diagram_id):
     """
     Get AI assistant help about a specific diagram.
@@ -200,7 +204,7 @@ def ask_about_diagram(request, diagram_id):
 )
 @api_view(['GET'])
 @permission_classes([AllowAny])
-@throttle_classes([AIAssistantRateThrottle])
+# @throttle_classes([AIAssistantRateThrottle])  # Disabled for debugging
 def get_diagram_analysis(request, diagram_id):
     """
     Get AI-powered analysis of a specific diagram.
@@ -328,7 +332,7 @@ def ai_assistant_health(request):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
-@throttle_classes([AIAssistantRateThrottle])
+# @throttle_classes([AIAssistantRateThrottle])  # Disabled for debugging
 def process_uml_command(request):
     """
     Process natural language commands for UML diagram generation.
@@ -400,7 +404,7 @@ def process_uml_command(request):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
-@throttle_classes([AIAssistantRateThrottle])
+# @throttle_classes([AIAssistantRateThrottle])  # Disabled for debugging
 def process_uml_command_for_diagram(request, diagram_id):
     """
     Process natural language command with diagram context.
@@ -503,7 +507,7 @@ def get_supported_commands(request):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
-@throttle_classes([AIAssistantRateThrottle])
+# @throttle_classes([AIAssistantRateThrottle])  # Disabled for debugging
 def process_diagram_image(request):
     """Process UML diagram image using Amazon Nova Pro Vision API.
     
@@ -577,7 +581,7 @@ def process_diagram_image(request):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
-@throttle_classes([AIAssistantRateThrottle])
+# @throttle_classes([AIAssistantRateThrottle])  # Disabled for debugging
 def update_diagram_from_image(request, diagram_id):
     """Extract UML elements from image using Amazon Nova Pro.
     
@@ -652,7 +656,7 @@ def update_diagram_from_image(request, diagram_id):
 )
 @api_view(['POST'])
 @permission_classes([AllowAny])
-@throttle_classes([AIAssistantRateThrottle])
+# @throttle_classes([AIAssistantRateThrottle])  # Disabled for debugging
 def process_incremental_command(request):
     """Process incremental UML modification command (English or Spanish).
     

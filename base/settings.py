@@ -188,7 +188,7 @@ if REDIS_AVAILABLE:
             'rest_framework.throttling.AnonRateThrottle',
         ],
         'DEFAULT_THROTTLE_RATES': {
-            'anon': '200/hour',
+            'anon': '10000/hour',
         },
     })
 else:
@@ -453,11 +453,11 @@ AWS_SECRET_ACCESS_KEY = env('AWS_SECRET_ACCESS_KEY', default='')
 AWS_DEFAULT_REGION = env('AWS_DEFAULT_REGION', default='us-east-1')
 
 AI_ASSISTANT_ENABLED = env.bool('AI_ASSISTANT_ENABLED', default=True)
-AI_ASSISTANT_RATE_LIMIT = env('AI_ASSISTANT_RATE_LIMIT', default='30/hour')
+AI_ASSISTANT_RATE_LIMIT = env('AI_ASSISTANT_RATE_LIMIT', default='10000/hour')
 AI_ASSISTANT_DEFAULT_MODEL = env('AI_ASSISTANT_DEFAULT_MODEL')
 
 THROTTLE_RATES = {
     'public_diagram': AI_ASSISTANT_RATE_LIMIT,
-    'anon': AI_ASSISTANT_RATE_LIMIT,
-    'user': AI_ASSISTANT_RATE_LIMIT
+    'anon': '10000/hour',
+    'user': '10000/hour'
 }
