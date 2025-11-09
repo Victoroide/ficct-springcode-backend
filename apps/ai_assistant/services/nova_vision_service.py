@@ -184,6 +184,8 @@ class NovaVisionService:
             
             logger.info(f"Calling Nova Pro API for session {session_id}")
             
+            image_base64 = base64.b64encode(image_bytes).decode('utf-8')
+            
             request_body = {
                 "messages": [
                     {
@@ -193,7 +195,7 @@ class NovaVisionService:
                                 "image": {
                                     "format": image_format,
                                     "source": {
-                                        "bytes": image_bytes
+                                        "bytes": image_base64
                                     }
                                 }
                             },
