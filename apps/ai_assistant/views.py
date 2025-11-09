@@ -10,9 +10,10 @@ from base.settings import env
 from .services import (
     AIAssistantService,
     UMLCommandProcessorService,
-    QwenVisionService,
-    ImageValidationError,
     IncrementalCommandProcessor,
+    get_nova_vision_service,
+    ImageValidationError,
+    AWSBedrockError,
 )
 from .serializers import (
     AIAssistantQuestionSerializer,
@@ -504,10 +505,10 @@ def get_supported_commands(request):
 @permission_classes([AllowAny])
 @throttle_classes([AIAssistantRateThrottle])
 def process_diagram_image(request):
-    """Process UML diagram image using Qwen3-VL Vision API.
+    """Process UML diagram image using Amazon Nova Pro Vision API.
     
     Extracts classes, attributes, methods and relationships from image.
-    Cost: ~$0.0014 per image (~0.14 cents)
+    Cost: $0.001-0.003 per image.
     """
     import time
     start_time = time.time()
@@ -521,9 +522,8 @@ def process_diagram_image(request):
                 'error': 'Missing required field: image'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Use Qwen3-VL Vision API
-        vision_service = QwenVisionService()
-        result = vision_service.process_uml_diagram_image(
+        vision_service = get_nova_vision_service()
+        result = vision_service.process_uml_diagram(
             base64_image=image_data,
             session_id=session_id
         )
@@ -543,6 +543,13 @@ def process_diagram_image(request):
             'error': 'Invalid image',
             'message': str(e)
         }, status=status.HTTP_400_BAD_REQUEST)
+        
+    except AWSBedrockError as e:
+        logger.error(f"AWS Bedrock API error: {str(e)}")
+        return Response({
+            'error': 'Image processing service error',
+            'message': str(e)
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         
     except Exception as e:
         logger.error(f"Image processing failed: {str(e)}", exc_info=True)
@@ -572,7 +579,10 @@ def process_diagram_image(request):
 @permission_classes([AllowAny])
 @throttle_classes([AIAssistantRateThrottle])
 def update_diagram_from_image(request, diagram_id):
-    """Extract UML elements from image (merging done client-side)."""
+    """Extract UML elements from image using Amazon Nova Pro.
+    
+    Merging is done client-side.
+    """
     import time
     start_time = time.time()
     
@@ -585,9 +595,8 @@ def update_diagram_from_image(request, diagram_id):
                 'error': 'Missing required field: image'
             }, status=status.HTTP_400_BAD_REQUEST)
         
-        # Use Qwen3-VL Vision API (client merges results)
-        vision_service = QwenVisionService()
-        result = vision_service.process_uml_diagram_image(
+        vision_service = get_nova_vision_service()
+        result = vision_service.process_uml_diagram(
             base64_image=image_data,
             session_id=session_id
         )
@@ -608,6 +617,13 @@ def update_diagram_from_image(request, diagram_id):
             'error': 'Invalid image',
             'message': str(e)
         }, status=status.HTTP_400_BAD_REQUEST)
+        
+    except AWSBedrockError as e:
+        logger.error(f"AWS Bedrock API error: {str(e)}")
+        return Response({
+            'error': 'Image processing service error',
+            'message': str(e)
+        }, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         
     except Exception as e:
         logger.error(f"Diagram extraction failed: {str(e)}", exc_info=True)
