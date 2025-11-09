@@ -167,9 +167,10 @@ class OpenAIService:
         )
 
         self.model = getattr(settings, "AI_ASSISTANT_DEFAULT_MODEL", O1_MINI_MODEL)
-        self.is_o1_mini = "o1" in self.model.lower()
+        self.is_o_series = self._is_o_series_model()
+        self.is_o1_mini = self.is_o_series
 
-        if self.is_o1_mini:
+        if self.is_o_series:
             self.max_tokens = MAX_COMPLETION_TOKENS_O1
         else:
             self.max_tokens = MAX_COMPLETION_TOKENS_GPT4
@@ -179,7 +180,39 @@ class OpenAIService:
         except Exception:
             self.encoding = tiktoken.get_encoding("cl100k_base")
 
-        logger.info(f"OpenAI Service initialized with model: {self.model}")
+        logger.info(
+            f"OpenAI Service initialized with model: {self.model} "
+            f"(o-series: {self.is_o_series})"
+        )
+
+    def _is_o_series_model(self) -> bool:
+        """
+        Detects if current model is an o-series model.
+
+        o-series models (o1, o1-mini, o4, o4-mini) have different parameter
+        requirements than traditional GPT models.
+
+        Returns:
+            True if model is o-series, False otherwise
+
+        Examples:
+            >>> self.model = "o1-mini"
+            >>> self._is_o_series_model()
+            True
+            >>> self.model = "o4-mini"
+            >>> self._is_o_series_model()
+            True
+            >>> self.model = "gpt-4o"
+            >>> self._is_o_series_model()
+            False
+        """
+        model_lower = self.model.lower()
+        return (
+            model_lower.startswith("o1")
+            or model_lower.startswith("o4")
+            or model_lower.startswith("o2")
+            or model_lower.startswith("o3")
+        )
 
     def _prepare_messages_for_o1(
         self, messages: List[Dict[str, str]]
@@ -254,20 +287,21 @@ class OpenAIService:
         Raises:
             Exception: If fails after all retries
         """
-        if self.is_o1_mini:
+        if self.is_o_series:
             messages = self._prepare_messages_for_o1(messages)
-            temperature = 1.0
 
         completion_params = {
             "model": self.model,
             "messages": messages,
-            "max_completion_tokens": max_tokens,
         }
 
-        if not self.is_o1_mini:
+        if self.is_o_series:
+            completion_params["max_completion_tokens"] = max_tokens
+        else:
+            completion_params["max_tokens"] = max_tokens
             completion_params["temperature"] = temperature
 
-        if response_format == "json" and not self.is_o1_mini:
+        if response_format == "json" and not self.is_o_series:
             completion_params["response_format"] = {"type": "json_object"}
 
         logger.info(
@@ -335,12 +369,12 @@ class OpenAIService:
                 messages=messages,
                 max_tokens=4096,
                 temperature=0.7,
-                response_format="json" if not self.is_o1_mini else None,
+                response_format="json" if not self.is_o_series else None,
             )
 
             content = response.choices[0].message.content
 
-            if self.is_o1_mini:
+            if self.is_o_series:
                 try:
                     parsed = json.loads(content)
                 except json.JSONDecodeError:
@@ -463,12 +497,12 @@ RULES:
                 messages=messages,
                 max_tokens=4096,
                 temperature=0.7,
-                response_format="json" if not self.is_o1_mini else None,
+                response_format="json" if not self.is_o_series else None,
             )
 
             content = response.choices[0].message.content
 
-            if self.is_o1_mini:
+            if self.is_o_series:
                 try:
                     parsed = json.loads(content)
                 except json.JSONDecodeError:
@@ -591,7 +625,7 @@ RESPOND IN JSON FORMAT:
                 messages=messages,
                 max_tokens=4096,
                 temperature=0.2,
-                response_format="json" if not self.is_o1_mini else None,
+                response_format="json" if not self.is_o_series else None,
             )
 
             content = response.choices[0].message.content
@@ -636,8 +670,8 @@ RESPOND IN JSON FORMAT:
             response = self._call_openai_api(
                 messages=messages,
                 max_tokens=3000,
-                temperature=0.2,
-                response_format="json" if not self.is_o1_mini else None,
+                temperature=0.7,
+                response_format=None,
             )
             
             return response.choices[0].message.content
@@ -861,7 +895,7 @@ CRITICAL: Generate timestamp-based unique IDs, create REAL attributes for all me
                 messages=messages,
                 max_tokens=4096,
                 temperature=0.7,
-                response_format="json" if not self.is_o1_mini else None,
+                response_format="json" if not self.is_o_series else None,
             )
 
             content = response.choices[0].message.content
