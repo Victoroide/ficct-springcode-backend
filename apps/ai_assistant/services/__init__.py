@@ -10,8 +10,11 @@ from .nova_vision_service import (
     ImageValidationError,
     AWSBedrockError
 )
+from .llama4_vision_service import Llama4VisionService
+from .llama4_command_service import Llama4CommandService
 from .nova_command_service import NovaCommandService
 from .model_router_service import ModelRouterService
+from .vision_model_router import VisionModelRouterService
 
 __all__ = [
     "CacheService",
@@ -22,8 +25,11 @@ __all__ = [
     "IncrementalCommandProcessor",
     "NovaVisionService",
     "get_nova_vision_service",
+    "Llama4VisionService",
+    "Llama4CommandService",
     "NovaCommandService",
     "ModelRouterService",
+    "VisionModelRouterService",
     "ImageValidationError",
     "AWSBedrockError",
 ]

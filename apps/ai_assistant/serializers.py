@@ -104,6 +104,7 @@ class UMLCommandRequestSerializer(serializers.Serializer):
     """Serializer for UML command processing requests."""
     
     MODEL_CHOICES = [
+        ('llama4-maverick', 'Llama 4 Maverick 17B'),
         ('nova-pro', 'Amazon Nova Pro'),
         ('o4-mini', 'Azure OpenAI o4-mini'),
     ]
@@ -127,7 +128,7 @@ class UMLCommandRequestSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
         default=None,
-        help_text="AI model to use for processing (defaults to nova-pro if not specified)"
+        help_text="AI model to use for processing (defaults to llama4-maverick if not specified)"
     )
     
     def validate_command(self, value):

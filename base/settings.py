@@ -457,6 +457,18 @@ AI_ASSISTANT_RATE_LIMIT = env('AI_ASSISTANT_RATE_LIMIT', default='10000/hour')
 AI_ASSISTANT_DEFAULT_MODEL = env('AI_ASSISTANT_DEFAULT_MODEL')
 
 COMMAND_PROCESSING_MODELS = {
+    'llama4-maverick': {
+        'name': 'Llama 4 Maverick 17B',
+        'provider': 'aws',
+        'enabled': True,
+        'cost_estimate': 0.0012,
+        'avg_response_time': 8,
+        'max_tokens': 4096,
+        'description': '70% cheaper, excellent reasoning (recommended)',
+        'context_window': 1048576,
+        'supports_streaming': False,
+        'requires_inference_profile': True
+    },
     'nova-pro': {
         'name': 'Amazon Nova Pro',
         'provider': 'aws',
@@ -464,7 +476,7 @@ COMMAND_PROCESSING_MODELS = {
         'cost_estimate': 0.002,
         'avg_response_time': 5,
         'max_tokens': 4000,
-        'description': 'Fast and reliable (recommended)'
+        'description': 'Fast and reliable'
     },
     'o4-mini': {
         'name': 'Azure OpenAI o4-mini',
@@ -477,9 +489,34 @@ COMMAND_PROCESSING_MODELS = {
     }
 }
 
-DEFAULT_COMMAND_MODEL = 'nova-pro'
+DEFAULT_COMMAND_MODEL = 'llama4-maverick'
 
-MODEL_FALLBACK_ORDER = ['nova-pro', 'o4-mini']
+MODEL_FALLBACK_ORDER = ['llama4-maverick', 'nova-pro', 'o4-mini']
+
+VISION_PROCESSING_MODELS = {
+    'llama4-maverick': {
+        'name': 'Llama 4 Maverick 17B Vision',
+        'provider': 'aws',
+        'enabled': True,
+        'cost_estimate': 0.0034,
+        'avg_response_time': 8,
+        'description': '70% cheaper, excellent accuracy',
+        'supports_multimodal': True
+    },
+    'nova-pro': {
+        'name': 'Amazon Nova Pro Vision',
+        'provider': 'aws',
+        'enabled': True,
+        'cost_estimate': 0.0112,
+        'avg_response_time': 5,
+        'description': 'Fast, reliable fallback',
+        'supports_multimodal': True
+    }
+}
+
+DEFAULT_VISION_MODEL = 'llama4-maverick'
+
+VISION_FALLBACK_ORDER = ['llama4-maverick', 'nova-pro']
 
 THROTTLE_RATES = {
     'public_diagram': AI_ASSISTANT_RATE_LIMIT,

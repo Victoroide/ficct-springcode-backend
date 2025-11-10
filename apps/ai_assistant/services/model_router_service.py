@@ -22,7 +22,8 @@ class ModelRouterService:
     Routes command processing requests to selected AI model.
     
     Supported models:
-        - nova-pro: Amazon Nova Pro (default, fast and reliable)
+        - llama4-maverick: Llama 4 Maverick 17B (default, 70% cheaper, 1M context)
+        - nova-pro: Amazon Nova Pro (fast and reliable)
         - o4-mini: Azure OpenAI o4-mini (advanced reasoning, slower)
     
     Features:
@@ -35,7 +36,7 @@ class ModelRouterService:
         router = ModelRouterService()
         result = router.process_command(
             command="crea clase User",
-            model="nova-pro"
+            model="llama4-maverick"
         )
     """
     
@@ -47,6 +48,13 @@ class ModelRouterService:
     
     def _initialize_services(self):
         """Initialize available model services."""
+        try:
+            from .llama4_command_service import Llama4CommandService
+            self._services['llama4-maverick'] = Llama4CommandService()
+            self.logger.info("Llama 4 Maverick service initialized")
+        except Exception as e:
+            self.logger.warning(f"Llama 4 Maverick service not available: {e}")
+        
         try:
             from .nova_command_service import NovaCommandService
             self._services['nova-pro'] = NovaCommandService()
