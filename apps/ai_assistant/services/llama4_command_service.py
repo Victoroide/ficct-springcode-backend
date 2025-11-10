@@ -121,9 +121,10 @@ class Llama4CommandService:
             
             request_body = {
                 "prompt": formatted_prompt,
-                "max_gen_len": 4096,
-                "temperature": 0.3,
-                "top_p": 0.9
+                "max_gen_len": 6000,
+                "temperature": 0.1,
+                "top_p": 0.9,
+                "repeat_penalty": 1.1
             }
             
             response = self.client.invoke_model(
@@ -164,6 +165,31 @@ class Llama4CommandService:
             processing_time = time.time() - start_time
             
             result = self._parse_response(generation)
+            
+            # CRITICAL: Validate elements array is not empty
+            if not result.get('elements') or len(result.get('elements', [])) == 0:
+                logger.error("[CRITICAL] Llama 4 returned EMPTY elements array")
+                logger.error(f"[CRITICAL] Full generation text (first 1000 chars): {generation[:1000]}")
+                logger.error(f"[CRITICAL] Full generation text (last 500 chars): {generation[-500:]}")
+                logger.error(f"[CRITICAL] Parsed result: {result}")
+                
+                # Return error to trigger fallback
+                return {
+                    'action': 'error',
+                    'elements': [],
+                    'confidence': 0.0,
+                    'interpretation': 'Llama 4 returned empty elements array',
+                    'error': 'Empty elements array - fallback required',
+                    'metadata': {
+                        'model': 'llama4-maverick',
+                        'response_time': round(time.time() - start_time, 2),
+                        'error_occurred': True,
+                        'error_reason': 'empty_elements_array',
+                        'requires_fallback': True
+                    }
+                }
+            
+            logger.info(f"[SUCCESS] Llama 4 generated {len(result['elements'])} elements")
             
             result['metadata'] = {
                 'model': 'llama4-maverick',
@@ -242,50 +268,150 @@ class Llama4CommandService:
         import time
         timestamp_ms = int(time.time() * 1000)
         
-        base_prompt = f"""You are a UML diagram generator that converts natural language to EXACT React Flow JSON.
+        base_prompt = f"""CRITICAL INSTRUCTION: You MUST return ONLY valid JSON. No text before or after. No explanations. No markdown.
 
-SUPPORTED ACTIONS:
-1. create_class - Create NEW class (only if doesn't exist)
-2. update_class - MODIFY existing class (preserve ID, update content)
-3. create_relationship - Add edge between existing classes
+TASK: Convert the user's natural language command into a UML class diagram in React Flow JSON format.
+
+MANDATORY JSON STRUCTURE (YOU MUST FOLLOW THIS EXACTLY):
+{{
+  "action": "create_class",
+  "elements": [
+    {{
+      "type": "node",
+      "data": {{
+        "id": "class-unique-id",
+        "data": {{
+          "label": "ClassName",
+          "nodeType": "class",
+          "isAbstract": false,
+          "attributes": [
+            {{
+              "id": "attr-classid-1",
+              "name": "attributeName",
+              "type": "String",
+              "visibility": "private",
+              "isStatic": false,
+              "isFinal": false
+            }}
+          ],
+          "methods": []
+        }},
+        "position": {{"x": 100, "y": 100}}
+      }}
+    }}
+  ],
+  "confidence": 0.95,
+  "interpretation": "Brief description"
+}}
+
+CRITICAL REQUIREMENTS - READ CAREFULLY:
+
+1. ELEMENTS ARRAY MUST NOT BE EMPTY
+   - Minimum 1 class for ANY command
+   - Typical: 3-8 classes for database/system requests
+   - Each class is a separate object in the elements array
+
+2. EACH CLASS MUST HAVE:
+   - Unique id (format: class-{timestamp_ms}-1, class-{timestamp_ms}-2, etc.)
+   - label (the class name)
+   - attributes array with MINIMUM 3 attributes (usually id, name, and 1-2 more)
+   - position with x and y coordinates
+   - All required fields as shown in structure above
+
+3. ATTRIBUTE REQUIREMENTS:
+   - Each class needs AT LEAST 3 attributes
+   - Each attribute needs: id, name, type, visibility
+   - Common pattern: id (Long), nombre/name (String), and domain-specific fields
+   - Use proper Java types: String, Long, Integer, Double, Date, Boolean
+
+4. POSITION STRATEGY:
+   - Spread classes across canvas to avoid overlapping
+   - x coordinate: increment by 300 (100, 400, 700, 1000...)
+   - y coordinate: alternate rows (100, 400, 100, 400...)
+   - Example: class 1 at (100,100), class 2 at (400,100), class 3 at (700,100)
 
 TYPE MAPPINGS:
 - id, codigo, code → Long
-- nombre, name, apellido, lastname → String
-- edad, age → Integer
-- precio, price, costo, cost → Double
-- activo, active, enabled → Boolean
-- fecha, date, createdAt → Date
-- descripcion, description, texto, text → String
-- cantidad, quantity, stock → Integer
-- email, correo → String
-- telefono, phone → String
-- direccion, address → String
-- sexo, gender → String
+- nombre, name, apellido, lastname, titulo, title → String
+- edad, age, cantidad, quantity, stock → Integer
+- precio, price, costo, cost, monto, amount → Double
+- activo, active, enabled, disponible → Boolean
+- fecha, date, createdAt, updatedAt → Date
+- descripcion, description, texto, text, notas → String
+- email, correo, telefono, phone, direccion, address → String
 
-CRITICAL MODIFICATION RULES:
+COMPLETE WORKING EXAMPLE:
 
-When modifying existing classes:
-1. Action MUST be "update_class"
-2. Include SAME class ID from context
-3. Include ALL attributes (existing + new/modified)
-4. Preserve class position
-5. Do NOT create duplicates
+For command "base de datos para heladeria" you would return:
 
-When creating new classes:
-1. Action is "create_class"
-2. Generate new ID with timestamp: class-{timestamp_ms}
-3. Verify class name doesn't exist in context
-4. Choose position to avoid overlaps
+{{
+  "action": "create_class",
+  "elements": [
+    {{
+      "type": "node",
+      "data": {{
+        "id": "class-{timestamp_ms}-1",
+        "data": {{
+          "label": "Producto",
+          "nodeType": "class",
+          "isAbstract": false,
+          "attributes": [
+            {{"id": "attr-1-1", "name": "id", "type": "Long", "visibility": "private", "isStatic": false, "isFinal": false}},
+            {{"id": "attr-1-2", "name": "nombre", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false}},
+            {{"id": "attr-1-3", "name": "precio", "type": "Double", "visibility": "private", "isStatic": false, "isFinal": false}},
+            {{"id": "attr-1-4", "name": "stock", "type": "Integer", "visibility": "private", "isStatic": false, "isFinal": false}}
+          ],
+          "methods": []
+        }},
+        "position": {{"x": 100, "y": 100}}
+      }}
+    }},
+    {{
+      "type": "node",
+      "data": {{
+        "id": "class-{timestamp_ms}-2",
+        "data": {{
+          "label": "Cliente",
+          "nodeType": "class",
+          "isAbstract": false,
+          "attributes": [
+            {{"id": "attr-2-1", "name": "id", "type": "Long", "visibility": "private", "isStatic": false, "isFinal": false}},
+            {{"id": "attr-2-2", "name": "nombre", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false}},
+            {{"id": "attr-2-3", "name": "email", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false}},
+            {{"id": "attr-2-4", "name": "telefono", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false}}
+          ],
+          "methods": []
+        }},
+        "position": {{"x": 400, "y": 100}}
+      }}
+    }},
+    {{
+      "type": "node",
+      "data": {{
+        "id": "class-{timestamp_ms}-3",
+        "data": {{
+          "label": "Venta",
+          "nodeType": "class",
+          "isAbstract": false,
+          "attributes": [
+            {{"id": "attr-3-1", "name": "id", "type": "Long", "visibility": "private", "isStatic": false, "isFinal": false}},
+            {{"id": "attr-3-2", "name": "fecha", "type": "Date", "visibility": "private", "isStatic": false, "isFinal": false}},
+            {{"id": "attr-3-3", "name": "total", "type": "Double", "visibility": "private", "isStatic": false, "isFinal": false}}
+          ],
+          "methods": []
+        }},
+        "position": {{"x": 700, "y": 100}}
+      }}
+    }}
+  ],
+  "confidence": 0.95,
+  "interpretation": "Created ice cream shop database with Producto, Cliente, and Venta classes"
+}}
 
-When creating relationships:
-1. Use EXISTING class IDs from context
-2. Action is "create_relationship"
-3. Verify both source and target exist
-
-RESPONSE FORMAT:
-You MUST respond with PURE JSON ONLY. No explanations, no markdown, no code blocks.
-Just the raw JSON object starting with {{ and ending with }}.
+SUPPORTED ACTIONS:
+- create_class: Create NEW classes (use when no existing diagram)
+- update_class: MODIFY existing class (use when class already exists)
+- create_relationship: Add relationship/edge between classes
 """
         
         if current_diagram_data:
@@ -429,20 +555,30 @@ Just the raw JSON object starting with {{ and ending with }}.
         else:
             base_prompt += "\n\nNo existing diagram context. Creating new diagram from scratch.\n\n"
         
-        base_prompt += f"USER COMMAND: {command}\n\n"
-        base_prompt += "Return ONLY valid JSON with no markdown formatting or code blocks."
+        base_prompt += f"\nNOW PROCESS THIS COMMAND:\n{command}\n\n"
+        base_prompt += "CRITICAL FINAL INSTRUCTIONS:\n"
+        base_prompt += "1. Generate AT LEAST 3-5 classes for database/system commands\n"
+        base_prompt += "2. Each class needs MINIMUM 3 attributes\n"
+        base_prompt += "3. Use unique IDs with timestamp\n"
+        base_prompt += "4. Spread positions (x: 100, 400, 700, 1000...)\n"
+        base_prompt += "5. Return ONLY the JSON object\n"
+        base_prompt += "6. NO text before or after the JSON\n"
+        base_prompt += "7. NO markdown code blocks\n"
+        base_prompt += "8. NO explanations\n\n"
+        base_prompt += "START YOUR RESPONSE WITH {{ AND END WITH }}. GENERATE THE JSON NOW:"
         
         return base_prompt
     
     def _format_llama_prompt(self, base_prompt: str) -> str:
         """
-        Format prompt in Llama 4 Maverick specific format.
+        Format prompt in Llama 4 Maverick specific format with JSON priming.
         
         Llama 4 requires special tokens for proper processing:
         - <|begin_of_text|> at start
         - <|start_header_id|>user<|end_header_id|> for user role
         - <|eot_id|> for end of turn
         - <|start_header_id|>assistant<|end_header_id|> for assistant role
+        - Prime with {{ to start JSON generation immediately
         
         Args:
             base_prompt: The base prompt content
@@ -452,7 +588,7 @@ Just the raw JSON object starting with {{ and ending with }}.
         """
         formatted = "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n"
         formatted += base_prompt
-        formatted += "\n<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>\n"
+        formatted += "\n<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>\n{{"
         
         return formatted
     

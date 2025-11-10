@@ -130,6 +130,43 @@ class ModelRouterService:
             result['metadata']['model_used'] = selected_model
             result['metadata']['model_requested'] = model or 'default'
             
+            # CRITICAL: Check if elements array is empty and fallback if needed
+            elements = result.get('elements', [])
+            if not elements or len(elements) == 0:
+                self.logger.warning(f"[FALLBACK] {selected_model} returned EMPTY elements array")
+                
+                # Check if error indicates need for fallback
+                requires_fallback = result.get('metadata', {}).get('requires_fallback', False)
+                error_reason = result.get('metadata', {}).get('error_reason', 'unknown')
+                
+                if requires_fallback or error_reason == 'empty_elements_array':
+                    fallback_model = self._get_fallback_model(selected_model)
+                    
+                    if fallback_model and fallback_model != selected_model:
+                        self.logger.info(f"[FALLBACK] Retrying with {fallback_model} due to empty elements")
+                        
+                        fallback_result = service.__class__.__name__
+                        if fallback_model in self._services:
+                            fallback_service = self._services[fallback_model]
+                            fallback_result = fallback_service.process_command(
+                                command=command,
+                                diagram_id=diagram_id,
+                                current_diagram_data=current_diagram_data
+                            )
+                            
+                            if 'metadata' not in fallback_result:
+                                fallback_result['metadata'] = {}
+                            
+                            fallback_result['metadata']['model_used'] = fallback_model
+                            fallback_result['metadata']['model_requested'] = selected_model
+                            fallback_result['metadata']['fallback_used'] = True
+                            fallback_result['metadata']['fallback_reason'] = 'empty_elements_from_llama4'
+                            fallback_result['metadata']['primary_model'] = selected_model
+                            
+                            self.logger.info(f"[FALLBACK] Successfully generated {len(fallback_result.get('elements', []))} elements with {fallback_model}")
+                            
+                            return fallback_result
+            
             self.logger.info(f"Command processed successfully with {selected_model}: "
                            f"action={result.get('action')}, "
                            f"elements={len(result.get('elements', []))}")
