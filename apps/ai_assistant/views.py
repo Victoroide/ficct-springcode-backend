@@ -15,6 +15,7 @@ from .services import (
     ImageValidationError,
     AWSBedrockError,
 )
+from .services.model_router_service import ModelRouterService
 from .serializers import (
     AIAssistantQuestionSerializer,
     AIAssistantResponseSerializer,
@@ -22,7 +23,8 @@ from .serializers import (
     SystemStatisticsSerializer,
     UMLCommandRequestSerializer,
     UMLCommandResponseSerializer,
-    SupportedCommandsSerializer
+    SupportedCommandsSerializer,
+    AvailableModelsSerializer
 )
 
 
@@ -339,6 +341,9 @@ def process_uml_command(request):
     
     Accepts commands in multiple languages and generates React Flow compatible
     JSON structures for UML elements like classes, attributes, methods, and relationships.
+    
+    Supports model selection via 'model' parameter (nova-pro, o4-mini).
+    Defaults to nova-pro if not specified.
     """
     try:
 
@@ -351,10 +356,11 @@ def process_uml_command(request):
         
         validated_data = serializer.validated_data
 
-        processor_service = UMLCommandProcessorService()
+        router_service = ModelRouterService()
 
-        result = processor_service.process_command(
+        result = router_service.process_command(
             command=validated_data['command'],
+            model=validated_data.get('model'),
             diagram_id=validated_data.get('diagram_id'),
             current_diagram_data=validated_data.get('current_diagram_data')
         )
@@ -704,4 +710,62 @@ def process_incremental_command(request):
         return Response({
             'error': 'Command processing failed',
             'message': str(e)
+        }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+@extend_schema(
+    tags=['AI Assistant'],
+    summary='Get Available AI Models',
+    description='Get list of available AI models for command processing with their metadata',
+    responses={
+        200: AvailableModelsSerializer,
+        500: {
+            'type': 'object',
+            'properties': {
+                'error': {'type': 'string'},
+                'message': {'type': 'string'}
+            }
+        }
+    }
+)
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_available_models(request):
+    """
+    Get list of available AI models for command processing.
+    
+    Returns information about each model including:
+    - Model identifier and name
+    - Provider (AWS, Azure)
+    - Average response time
+    - Cost estimate per request
+    - Default model indicator
+    """
+    try:
+        from django.conf import settings
+        
+        router_service = ModelRouterService()
+        
+        available_models = router_service.get_available_models()
+        default_model = settings.DEFAULT_COMMAND_MODEL
+        
+        response_data = {
+            'default': default_model,
+            'models': available_models
+        }
+        
+        serializer = AvailableModelsSerializer(data=response_data)
+        if serializer.is_valid():
+            return Response(serializer.validated_data, status=status.HTTP_200_OK)
+        else:
+            return Response({
+                'error': 'Invalid response format',
+                'details': serializer.errors
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            
+    except Exception as e:
+        logger.error(f"Error getting available models: {e}", exc_info=True)
+        return Response({
+            'error': 'Internal server error',
+            'message': 'Error retrieving available models'
         }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

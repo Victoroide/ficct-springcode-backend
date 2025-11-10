@@ -13,6 +13,7 @@ urlpatterns = [
     path('process-command/', views.process_uml_command, name='process_uml_command'),
     path('process-command/<uuid:diagram_id>/', views.process_uml_command_for_diagram, name='process_uml_command_for_diagram'),
     path('supported-commands/', views.get_supported_commands, name='get_supported_commands'),
+    path('models/', views.get_available_models, name='get_available_models'),
     
     path('diagrams/from-image/', views.process_diagram_image, name='process_diagram_image'),
     path('diagrams/<uuid:diagram_id>/update-from-image/', views.update_diagram_from_image, name='update_diagram_from_image'),

@@ -456,6 +456,31 @@ AI_ASSISTANT_ENABLED = env.bool('AI_ASSISTANT_ENABLED', default=True)
 AI_ASSISTANT_RATE_LIMIT = env('AI_ASSISTANT_RATE_LIMIT', default='10000/hour')
 AI_ASSISTANT_DEFAULT_MODEL = env('AI_ASSISTANT_DEFAULT_MODEL')
 
+COMMAND_PROCESSING_MODELS = {
+    'nova-pro': {
+        'name': 'Amazon Nova Pro',
+        'provider': 'aws',
+        'enabled': True,
+        'cost_estimate': 0.002,
+        'avg_response_time': 5,
+        'max_tokens': 4000,
+        'description': 'Fast and reliable (recommended)'
+    },
+    'o4-mini': {
+        'name': 'Azure OpenAI o4-mini',
+        'provider': 'azure',
+        'enabled': True,
+        'cost_estimate': 0.003,
+        'avg_response_time': 25,
+        'max_tokens': 5000,
+        'description': 'Advanced reasoning (slower)'
+    }
+}
+
+DEFAULT_COMMAND_MODEL = 'nova-pro'
+
+MODEL_FALLBACK_ORDER = ['nova-pro', 'o4-mini']
+
 THROTTLE_RATES = {
     'public_diagram': AI_ASSISTANT_RATE_LIMIT,
     'anon': '10000/hour',

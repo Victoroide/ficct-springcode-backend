@@ -103,6 +103,11 @@ class SystemStatisticsSerializer(serializers.Serializer):
 class UMLCommandRequestSerializer(serializers.Serializer):
     """Serializer for UML command processing requests."""
     
+    MODEL_CHOICES = [
+        ('nova-pro', 'Amazon Nova Pro'),
+        ('o4-mini', 'Azure OpenAI o4-mini'),
+    ]
+    
     command = serializers.CharField(
         max_length=2000,
         help_text="Natural language command for UML diagram generation"
@@ -116,6 +121,13 @@ class UMLCommandRequestSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
         help_text="Current diagram state with nodes and edges"
+    )
+    model = serializers.ChoiceField(
+        choices=MODEL_CHOICES,
+        required=False,
+        allow_null=True,
+        default=None,
+        help_text="AI model to use for processing (defaults to nova-pro if not specified)"
     )
     
     def validate_command(self, value):
@@ -164,6 +176,47 @@ class UMLCommandResponseSerializer(serializers.Serializer):
     suggestion = serializers.CharField(
         required=False,
         help_text="Suggestion for fixing errors or improving command"
+    )
+
+
+class ModelInfoSerializer(serializers.Serializer):
+    """Serializer for AI model information."""
+    
+    id = serializers.CharField(
+        help_text="Model identifier (e.g., nova-pro, o4-mini)"
+    )
+    name = serializers.CharField(
+        help_text="Display name of the model"
+    )
+    description = serializers.CharField(
+        help_text="Description of model capabilities"
+    )
+    provider = serializers.CharField(
+        help_text="Provider of the model (aws, azure)"
+    )
+    avg_response_time = serializers.IntegerField(
+        help_text="Average response time in seconds"
+    )
+    cost_estimate = serializers.FloatField(
+        help_text="Estimated cost per request in USD"
+    )
+    is_default = serializers.BooleanField(
+        help_text="Whether this is the default model"
+    )
+    enabled = serializers.BooleanField(
+        help_text="Whether the model is currently enabled"
+    )
+
+
+class AvailableModelsSerializer(serializers.Serializer):
+    """Serializer for list of available AI models."""
+    
+    default = serializers.CharField(
+        help_text="Default model identifier"
+    )
+    models = serializers.ListField(
+        child=ModelInfoSerializer(),
+        help_text="List of available models with their metadata"
     )
 
 
