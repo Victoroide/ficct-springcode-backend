@@ -320,6 +320,130 @@ class OpenAIService:
 
         return response
 
+    def _extract_response_content(self, response) -> str:
+        """
+        Robustly extract content from OpenAI API response.
+        
+        o-series models (o1, o1-mini, o4-mini) may have different response structures
+        than standard models (gpt-4, gpt-4o). This method tries multiple extraction
+        strategies to ensure content is retrieved correctly.
+        
+        Args:
+            response: OpenAI ChatCompletion response object
+            
+        Returns:
+            Extracted content as string
+            
+        Raises:
+            Exception: If content cannot be extracted from any strategy
+        """
+        logger.info("=" * 80)
+        logger.info("RESPONSE EXTRACTION DEBUG")
+        logger.info("=" * 80)
+        
+        # Log response structure for debugging
+        logger.info(f"Response type: {type(response)}")
+        logger.info(f"Response has choices: {hasattr(response, 'choices')}")
+        
+        if hasattr(response, 'choices') and len(response.choices) > 0:
+            logger.info(f"Choices count: {len(response.choices)}")
+            logger.info(f"First choice type: {type(response.choices[0])}")
+            logger.info(f"First choice attributes: {dir(response.choices[0])}")
+            
+            if hasattr(response.choices[0], 'message'):
+                logger.info(f"Message attributes: {dir(response.choices[0].message)}")
+        
+        content = None
+        
+        # STRATEGY 1: Standard message.content (works for gpt-4, gpt-4o)
+        try:
+            if hasattr(response.choices[0], 'message') and hasattr(response.choices[0].message, 'content'):
+                content = response.choices[0].message.content
+                if content:
+                    logger.info(f"[OK] Strategy 1 SUCCESS: message.content ({len(content)} chars)")
+                    return content
+                else:
+                    logger.warning("[FAIL] Strategy 1: message.content is empty or None")
+        except (AttributeError, IndexError) as e:
+            logger.warning(f"[FAIL] Strategy 1 failed: {e}")
+        
+        # STRATEGY 2: o-series text attribute (may work for o-series)
+        try:
+            if hasattr(response.choices[0], 'text'):
+                content = response.choices[0].text
+                if content:
+                    logger.info(f"[OK] Strategy 2 SUCCESS: choice.text ({len(content)} chars)")
+                    return content
+                else:
+                    logger.warning("[FAIL] Strategy 2: choice.text is empty or None")
+        except (AttributeError, IndexError) as e:
+            logger.warning(f"[FAIL] Strategy 2 failed: {e}")
+        
+        # STRATEGY 3: o-series reasoning_content (for o-series with reasoning)
+        try:
+            if hasattr(response.choices[0], 'message') and hasattr(response.choices[0].message, 'reasoning_content'):
+                reasoning = response.choices[0].message.reasoning_content
+                if reasoning:
+                    logger.info(f"[OK] Strategy 3 SUCCESS: reasoning_content ({len(reasoning)} chars)")
+                    # For o-series, reasoning_content may contain the full response
+                    return reasoning
+                else:
+                    logger.warning("[FAIL] Strategy 3: reasoning_content is empty or None")
+        except (AttributeError, IndexError) as e:
+            logger.warning(f"[FAIL] Strategy 3 failed: {e}")
+        
+        # STRATEGY 4: Dictionary access via model_dump()
+        try:
+            response_dict = response.model_dump()
+            logger.info(f"Response dict keys: {response_dict.keys()}")
+            
+            if 'choices' in response_dict and len(response_dict['choices']) > 0:
+                choice_dict = response_dict['choices'][0]
+                logger.info(f"Choice dict keys: {choice_dict.keys()}")
+                
+                if 'message' in choice_dict and 'content' in choice_dict['message']:
+                    content = choice_dict['message']['content']
+                    if content:
+                        logger.info(f"[OK] Strategy 4 SUCCESS: dict access ({len(content)} chars)")
+                        return content
+                    else:
+                        logger.warning("[FAIL] Strategy 4: dict content is empty or None")
+        except Exception as e:
+            logger.warning(f"[FAIL] Strategy 4 failed: {e}")
+        
+        # STRATEGY 5: JSON serialization fallback
+        try:
+            import json
+            response_json = response.model_dump_json()
+            response_dict = json.loads(response_json)
+            
+            content = response_dict.get('choices', [{}])[0].get('message', {}).get('content')
+            if content:
+                logger.info(f"[OK] Strategy 5 SUCCESS: JSON parse ({len(content)} chars)")
+                return content
+            else:
+                logger.warning("[FAIL] Strategy 5: JSON content is empty or None")
+        except Exception as e:
+            logger.warning(f"[FAIL] Strategy 5 failed: {e}")
+        
+        # ALL STRATEGIES FAILED - Log full response and raise error
+        logger.error("=" * 80)
+        logger.error("CRITICAL: ALL EXTRACTION STRATEGIES FAILED")
+        logger.error("=" * 80)
+        logger.error(f"Full response object: {response}")
+        
+        try:
+            logger.error(f"Response dict: {response.model_dump()}")
+        except:
+            logger.error("Could not dump response to dict")
+        
+        raise Exception(
+            f"Failed to extract content from OpenAI response after trying all strategies. "
+            f"Response type: {type(response)}, "
+            f"Model: {self.model}, "
+            f"Is o-series: {self.is_o_series}"
+        )
+
     def call_api(
         self,
         messages: List[Dict[str, str]],
@@ -350,8 +474,9 @@ class OpenAIService:
                 response_format=None
             )
             
-            content = response.choices[0].message.content
-            logger.info("Generic API call successful")
+            # Use robust extraction for o-series compatibility
+            content = self._extract_response_content(response)
+            logger.info(f"Generic API call successful: {len(content)} chars")
             
             return content
             
@@ -414,7 +539,8 @@ class OpenAIService:
                 response_format="json" if not self.is_o_series else None,
             )
 
-            content = response.choices[0].message.content
+            # Use robust extraction for o-series compatibility
+            content = self._extract_response_content(response)
 
             if self.is_o_series:
                 try:
@@ -542,7 +668,8 @@ RULES:
                 response_format="json" if not self.is_o_series else None,
             )
 
-            content = response.choices[0].message.content
+            # Use robust extraction for o-series compatibility
+            content = self._extract_response_content(response)
 
             if self.is_o_series:
                 try:
@@ -670,7 +797,8 @@ RESPOND IN JSON FORMAT:
                 response_format="json" if not self.is_o_series else None,
             )
 
-            content = response.choices[0].message.content
+            # Use robust extraction for o-series compatibility
+            content = self._extract_response_content(response)
 
             try:
                 result = json.loads(content)
@@ -726,7 +854,11 @@ RESPOND IN JSON FORMAT:
             elapsed_time = time.time() - start_time
             logger.info(f"OpenAI API call completed in {elapsed_time:.2f} seconds")
             
-            return response.choices[0].message.content
+            # Extract content using robust method for o-series compatibility
+            content = self._extract_response_content(response)
+            logger.info(f"Successfully extracted content: {len(content)} chars")
+            
+            return content
             
         except Exception as e:
             elapsed_time = time.time() - start_time
@@ -967,7 +1099,8 @@ CRITICAL: Generate timestamp-based unique IDs, create REAL attributes for all me
                 response_format="json" if not self.is_o_series else None,
             )
 
-            content = response.choices[0].message.content
+            # Use robust extraction for o-series compatibility
+            content = self._extract_response_content(response)
 
             try:
                 result = json.loads(content)
