@@ -309,6 +309,9 @@ class OpenAIService:
             f"max_tokens={max_tokens}, messages={len(messages)}"
         )
 
+        # Add timeout to prevent indefinite waiting (especially important for o4-mini)
+        completion_params["timeout"] = 60.0  # 60 seconds timeout
+
         response = self.client.chat.completions.create(**completion_params)
 
         logger.info(
@@ -698,7 +701,12 @@ RESPOND IN JSON FORMAT:
         Returns:
             JSON string with exact React Flow node/edge structures
         """
+        import time
+        start_time = time.time()
+        
         try:
+            logger.info(f"Starting command processing API call for: {command[:100]}")
+            
             system_prompt = self._build_direct_json_prompt(current_diagram_data)
             
             messages = [
@@ -706,17 +714,23 @@ RESPOND IN JSON FORMAT:
                 {"role": "user", "content": command}
             ]
 
+            logger.info("Calling OpenAI API for command processing...")
+            
             response = self._call_openai_api(
                 messages=messages,
-                max_tokens=3000,
+                max_tokens=2000,  # Reduced from 3000 for faster responses
                 temperature=0.7,
                 response_format=None,
             )
             
+            elapsed_time = time.time() - start_time
+            logger.info(f"OpenAI API call completed in {elapsed_time:.2f} seconds")
+            
             return response.choices[0].message.content
             
         except Exception as e:
-            logger.error(f"Command processing API call failed: {e}")
+            elapsed_time = time.time() - start_time
+            logger.error(f"Command processing API call failed after {elapsed_time:.2f} seconds: {e}")
             raise
 
     def _build_direct_json_prompt(self, current_diagram_data: dict = None) -> str:
@@ -725,6 +739,22 @@ RESPOND IN JSON FORMAT:
         timestamp_ms = int(time.time() * 1000)
         
         base_prompt = f"""
+⚠️ CRITICAL OUTPUT FORMAT REQUIREMENT ⚠️
+
+YOU MUST RETURN ONLY PURE JSON. NO EXPLANATORY TEXT. NO MARKDOWN.
+
+INCORRECT RESPONSE EXAMPLES:
+❌ "Here's the diagram: ``````"
+❌ "I'll create a User class: {{...}}"
+❌ "```json\n{{...}}\n```"
+
+CORRECT RESPONSE FORMAT:
+✅ Your response must START with {{ and END with }}
+✅ First character: {{
+✅ Last character: }}
+✅ Nothing before or after the JSON object
+✅ Response must be parseable by json.loads() in Python
+
 You are a UML diagram generator that converts natural language to EXACT React Flow JSON.
 
 Your ONLY task is to generate VALID React Flow node/edge JSON structures. NEVER return empty elements arrays.
