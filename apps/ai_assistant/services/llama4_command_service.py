@@ -140,6 +140,25 @@ class Llama4CommandService:
             completion_tokens = response_body.get('generation_token_count', 0)
             stop_reason = response_body.get('stop_reason', 'unknown')
             
+            logger.info(f"Llama 4 response body keys: {response_body.keys()}")
+            logger.info(f"Generation field length: {len(generation)} chars")
+            logger.info(f"Generation preview: {generation[:300]}")
+            
+            if not generation:
+                logger.error(f"Empty generation field! Full response body: {response_body}")
+                return {
+                    'action': 'error',
+                    'elements': [],
+                    'confidence': 0.0,
+                    'interpretation': 'Llama 4 returned empty generation',
+                    'error': 'Empty response from model',
+                    'metadata': {
+                        'model': 'llama4-maverick',
+                        'response_time': round(time.time() - start_time, 2),
+                        'error_occurred': True
+                    }
+                }
+            
             cost_info = self._calculate_cost(prompt_tokens, completion_tokens)
             
             processing_time = time.time() - start_time
@@ -442,14 +461,20 @@ Just the raw JSON object starting with {{ and ending with }}.
         Parse Llama 4 Maverick response text and extract JSON.
         
         Uses multiple extraction strategies to handle various response formats.
+        Ensures all required fields are present with proper defaults.
         
         Args:
             response_text: Raw response text from Llama 4 Maverick
             
         Returns:
-            Parsed JSON as dictionary
+            Parsed JSON as dictionary with all required fields
         """
+        logger.info(f"[PARSING] Starting parse of {len(response_text)} char response")
+        logger.info(f"[PARSING] Response preview (first 400 chars): {response_text[:400]}")
+        logger.info(f"[PARSING] Response preview (last 200 chars): {response_text[-200:]}")
+        
         if not response_text or not response_text.strip():
+            logger.error("[PARSING] Empty response text")
             return {
                 'action': 'error',
                 'elements': [],
@@ -466,29 +491,89 @@ Just the raw JSON object starting with {{ and ending with }}.
             self._try_last_valid_json
         ]
         
-        for strategy in strategies:
+        for i, strategy in enumerate(strategies, 1):
             try:
+                logger.info(f"[PARSING] Trying strategy {i}/{len(strategies)}: {strategy.__name__}")
                 result = strategy(response_text)
                 if result:
-                    return result
+                    logger.info(f"[PARSING] Strategy {strategy.__name__} SUCCESS")
+                    logger.info(f"[PARSING] Extracted keys: {result.keys()}")
+                    logger.info(f"[PARSING] Action: {result.get('action')}")
+                    logger.info(f"[PARSING] Elements count: {len(result.get('elements', []))}")
+                    
+                    validated_result = self._validate_and_normalize_result(result)
+                    logger.info(f"[PARSING] After validation - Action: {validated_result.get('action')}, Elements: {len(validated_result.get('elements', []))}")
+                    return validated_result
+                else:
+                    logger.warning(f"[PARSING] Strategy {strategy.__name__} returned None")
             except Exception as e:
-                self.logger.debug(f"Strategy {strategy.__name__} failed: {e}")
+                logger.warning(f"[PARSING] Strategy {strategy.__name__} failed with error: {e}")
                 continue
         
-        self.logger.error(f"All parsing strategies failed for response: {response_text[:500]}")
+        logger.error(f"[PARSING] ALL {len(strategies)} STRATEGIES FAILED")
+        logger.error(f"[PARSING] Full response text:\n{response_text}")
         
         return {
             'action': 'error',
             'elements': [],
             'confidence': 0.0,
             'interpretation': 'Could not parse Llama 4 Maverick response',
-            'error': 'Failed to extract valid JSON',
+            'error': 'Failed to extract valid JSON from all strategies',
             'raw_response_preview': response_text[:500]
         }
     
+    def _validate_and_normalize_result(self, result: Dict) -> Dict[str, Any]:
+        """
+        Validate and normalize parsed result to ensure all required fields exist.
+        
+        Args:
+            result: Raw parsed result from extraction strategy
+            
+        Returns:
+            Normalized result with all required fields and proper defaults
+        """
+        if not isinstance(result, dict):
+            logger.error(f"[VALIDATION] Result is not a dict: {type(result)}")
+            return {
+                'action': 'error',
+                'elements': [],
+                'confidence': 0.0,
+                'interpretation': 'Invalid result type',
+                'error': 'Parsed result is not a dictionary'
+            }
+        
+        normalized = {
+            'action': result.get('action', 'create_class'),
+            'elements': result.get('elements', []),
+            'confidence': result.get('confidence', 0.85),
+            'interpretation': result.get('interpretation', 'Generated by Llama 4 Maverick')
+        }
+        
+        if not normalized['action']:
+            logger.warning("[VALIDATION] Missing action, defaulting to 'create_class'")
+            normalized['action'] = 'create_class'
+        
+        if not isinstance(normalized['elements'], list):
+            logger.warning(f"[VALIDATION] Elements not a list: {type(normalized['elements'])}, defaulting to []")
+            normalized['elements'] = []
+        
+        if not isinstance(normalized['confidence'], (int, float)):
+            logger.warning(f"[VALIDATION] Confidence not numeric: {type(normalized['confidence'])}, defaulting to 0.85")
+            normalized['confidence'] = 0.85
+        
+        if not isinstance(normalized['interpretation'], str):
+            logger.warning(f"[VALIDATION] Interpretation not string: {type(normalized['interpretation'])}, defaulting")
+            normalized['interpretation'] = 'Generated by Llama 4 Maverick'
+        
+        logger.info(f"[VALIDATION] Normalized result: action={normalized['action']}, elements={len(normalized['elements'])}, confidence={normalized['confidence']}")
+        
+        return normalized
+    
     def _try_direct_parse(self, text: str) -> Optional[Dict]:
         """Try parsing text directly as JSON."""
-        return json.loads(text.strip())
+        parsed = json.loads(text.strip())
+        logger.debug(f"[DIRECT_PARSE] Success: {parsed.keys() if isinstance(parsed, dict) else type(parsed)}")
+        return parsed
     
     def _try_markdown_extraction(self, text: str) -> Optional[Dict]:
         """Extract JSON from markdown code blocks."""
