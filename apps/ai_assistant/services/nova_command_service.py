@@ -226,28 +226,24 @@ class NovaCommandService:
     
     def _build_command_prompt(self, command: str, current_diagram_data: Optional[Dict] = None) -> str:
         """
-        Build comprehensive prompt for command processing.
+        Build comprehensive prompt for command processing with full context awareness.
         
         Args:
             command: Natural language command
             current_diagram_data: Optional existing diagram data
             
         Returns:
-            Formatted prompt string
+            Formatted prompt string with complete diagram context
         """
         import time
         timestamp_ms = int(time.time() * 1000)
         
         base_prompt = f"""You are a UML diagram generator that converts natural language to EXACT React Flow JSON.
 
-Your ONLY task is to generate VALID React Flow node/edge JSON structures. NEVER return empty elements arrays.
-
-CRITICAL RULES:
-1. ALWAYS generate REAL elements - NEVER return empty arrays
-2. Use unique IDs with timestamp: class-{timestamp_ms}, attr-{timestamp_ms}
-3. Position new elements intelligently to avoid overlaps
-4. Support Spanish, English, French commands
-5. ALWAYS populate elements array when command is clear
+SUPPORTED ACTIONS:
+1. create_class - Create NEW class (only if doesn't exist)
+2. update_class - MODIFY existing class (preserve ID, update content)
+3. create_relationship - Add edge between existing classes
 
 TYPE MAPPINGS:
 - id, codigo, code → Long
@@ -263,57 +259,25 @@ TYPE MAPPINGS:
 - direccion, address → String
 - sexo, gender → String
 
-EXACT JSON STRUCTURE:
-{{
-  "action": "create_class",
-  "elements": [
-    {{
-      "type": "node",
-      "data": {{
-        "id": "class-{timestamp_ms}",
-        "data": {{
-          "label": "ClassName",
-          "attributes": [
-            {{"id": "attr-{timestamp_ms}-1", "name": "attributeName", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false}}
-          ],
-          "methods": [],
-          "nodeType": "class",
-          "isAbstract": false
-        }},
-        "type": "class",
-        "position": {{"x": 400, "y": 200}},
-        "width": 180,
-        "height": 140
-      }}
-    }}
-  ],
-  "confidence": 0.95,
-  "interpretation": "Created ClassName with specified attributes"
-}}
+CRITICAL MODIFICATION RULES:
 
-POSITIONING STRATEGY:
-- First class: {{"x": 400, "y": 200}}
-- Second class: {{"x": 700, "y": 200}}
-- Third class: {{"x": 400, "y": 450}}
-- Fourth class: {{"x": 700, "y": 450}}
-- Avoid overlaps with existing nodes
+When modifying existing classes:
+1. Action MUST be "update_class"
+2. Include SAME class ID from context
+3. Include ALL attributes (existing + new/modified)
+4. Preserve class position
+5. Do NOT create duplicates
 
-RELATIONSHIP STRUCTURE:
-{{
-  "type": "edge",
-  "data": {{
-    "id": "edge-{timestamp_ms}",
-    "source": "class-source-id",
-    "target": "class-target-id",
-    "type": "umlRelationship",
-    "data": {{
-      "relationshipType": "ASSOCIATION",
-      "sourceMultiplicity": "1",
-      "targetMultiplicity": "*",
-      "label": ""
-    }}
-  }}
-}}
+When creating new classes:
+1. Action is "create_class"
+2. Generate new ID with timestamp: class-{timestamp_ms}
+3. Verify class name doesn't exist in context
+4. Choose position to avoid overlaps
+
+When creating relationships:
+1. Use EXISTING class IDs from context
+2. Action is "create_relationship"
+3. Verify both source and target exist
 
 RESPONSE FORMAT:
 You MUST respond with PURE JSON ONLY. No explanations, no markdown, no code blocks.
@@ -322,20 +286,147 @@ Just the raw JSON object starting with {{ and ending with }}.
         
         if current_diagram_data:
             nodes = current_diagram_data.get('nodes', [])
+            edges = current_diagram_data.get('edges', [])
             
             if nodes:
-                node_info = []
-                for node in nodes[:5]:
-                    node_data = node.get('data', {})
-                    label = node_data.get('label', 'Unknown')
-                    node_id = node.get('id', '')
-                    node_info.append(f"- {label} (ID: {node_id})")
+                context = "\n\n" + "="*70 + "\n"
+                context += "EXISTING DIAGRAM CONTEXT\n"
+                context += "="*70 + "\n\n"
+                context += f"Total Classes: {len(nodes)}\n"
+                context += f"Total Relationships: {len(edges)}\n\n"
+                context += "CLASSES DETAIL:\n\n"
                 
-                context = f"\n\nEXISTING DIAGRAM CONTEXT:\nClasses: {', '.join([n.get('data', {}).get('label', '') for n in nodes])}\n" + "\n".join(node_info)
-                context += f"\n\nPosition new classes to avoid these existing positions. Use x > 100 and y > 100."
+                for idx, node in enumerate(nodes, 1):
+                    node_id = node.get('id', 'unknown')
+                    data = node.get('data', {})
+                    label = data.get('label', 'Unknown')
+                    position = node.get('position', {'x': 0, 'y': 0})
+                    attributes = data.get('attributes', [])
+                    methods = data.get('methods', [])
+                    node_type = data.get('nodeType', 'class')
+                    is_abstract = data.get('isAbstract', False)
+                    
+                    context += f"{idx}. {label} (ID: {node_id})\n"
+                    if is_abstract:
+                        context += "   Type: Abstract Class\n"
+                    context += f"   Position: x={position['x']}, y={position['y']}\n"
+                    
+                    if attributes:
+                        context += "   Attributes:\n"
+                        for attr in attributes:
+                            attr_name = attr.get('name', 'unknown')
+                            attr_type = attr.get('type', 'String')
+                            visibility = attr.get('visibility', 'private')
+                            is_static = attr.get('isStatic', False)
+                            is_final = attr.get('isFinal', False)
+                            modifiers = []
+                            if is_static:
+                                modifiers.append('static')
+                            if is_final:
+                                modifiers.append('final')
+                            mod_str = ' '.join(modifiers)
+                            context += f"   - {attr_name}: {attr_type} ({visibility})"
+                            if mod_str:
+                                context += f" [{mod_str}]"
+                            context += "\n"
+                    else:
+                        context += "   Attributes: (none)\n"
+                    
+                    if methods:
+                        context += "   Methods:\n"
+                        for method in methods:
+                            method_name = method.get('name', 'unknown')
+                            return_type = method.get('returnType', 'void')
+                            visibility = method.get('visibility', 'public')
+                            parameters = method.get('parameters', [])
+                            if parameters:
+                                param_str = ', '.join([f"{p.get('name', 'param')}: {p.get('type', 'String')}" for p in parameters])
+                                context += f"   - {method_name}({param_str}): {return_type} ({visibility})\n"
+                            else:
+                                context += f"   - {method_name}(): {return_type} ({visibility})\n"
+                    else:
+                        context += "   Methods: (none)\n"
+                    
+                    context += "\n"
+                
+                if edges:
+                    context += "RELATIONSHIPS:\n\n"
+                    for idx, edge in enumerate(edges, 1):
+                        source_id = edge.get('source', '')
+                        target_id = edge.get('target', '')
+                        edge_data = edge.get('data', {})
+                        rel_type = edge_data.get('relationshipType', 'ASSOCIATION')
+                        source_mult = edge_data.get('sourceMultiplicity', '1')
+                        target_mult = edge_data.get('targetMultiplicity', '1')
+                        label = edge_data.get('label', '')
+                        
+                        source_name = next((n['data']['label'] for n in nodes if n['id'] == source_id), source_id)
+                        target_name = next((n['data']['label'] for n in nodes if n['id'] == target_id), target_id)
+                        
+                        context += f"{idx}. {source_name} → {target_name} ({rel_type})\n"
+                        context += f"   Source ID: {source_id}\n"
+                        context += f"   Target ID: {target_id}\n"
+                        context += f"   Source Multiplicity: {source_mult}\n"
+                        context += f"   Target Multiplicity: {target_mult}\n"
+                        if label:
+                            context += f"   Label: {label}\n"
+                        context += "\n"
+                else:
+                    context += "RELATIONSHIPS: (none)\n\n"
+                
+                context += "="*70 + "\n"
+                context += "CRITICAL INSTRUCTIONS FOR THIS COMMAND\n"
+                context += "="*70 + "\n\n"
+                
+                context += "1. IDENTIFY THE TARGET:\n"
+                context += "   - Find class by exact name match from context above\n"
+                context += "   - Use the class ID from context (NEVER create new ID for existing class)\n"
+                context += "   - Do NOT create duplicate classes\n\n"
+                
+                context += "2. MODIFICATION OPERATIONS:\n"
+                context += "   - ADD ATTRIBUTE: Use action 'update_class', include ALL existing attributes + new one\n"
+                context += "   - REMOVE ATTRIBUTE: Use action 'update_class', include all EXCEPT removed attribute\n"
+                context += "   - MODIFY ATTRIBUTE: Use action 'update_class', update the specific attribute\n"
+                context += "   - ADD METHOD: Use action 'update_class', include ALL existing methods + new one\n"
+                context += "   - REMOVE METHOD: Use action 'update_class', include all EXCEPT removed method\n\n"
+                
+                context += "3. RELATIONSHIP OPERATIONS:\n"
+                context += "   - Use action 'create_relationship'\n"
+                context += "   - Use EXISTING class IDs from context for source and target\n"
+                context += "   - Never create classes just to make relationships\n\n"
+                
+                context += "4. PRESERVATION RULES:\n"
+                context += "   - When updating a class, include ALL its current attributes\n"
+                context += "   - Keep class position exactly as shown in context\n"
+                context += "   - Keep same class ID\n"
+                context += "   - Only change what the command explicitly requests\n\n"
+                
+                context += "5. JSON FORMAT FOR UPDATE:\n"
+                context += '{{\n'
+                context += '  "action": "update_class",\n'
+                context += '  "elements": [{{\n'
+                context += '    "type": "node",\n'
+                context += '    "data": {{\n'
+                context += '      "id": "class-xxx",  ← SAME ID from context\n'
+                context += '      "data": {{\n'
+                context += '        "label": "ClassName",\n'
+                context += '        "attributes": [/* ALL attributes including unchanged */],\n'
+                context += '        "methods": [/* ALL methods including unchanged */],\n'
+                context += '        "nodeType": "class"\n'
+                context += '      }},\n'
+                context += '      "position": {{"x": same, "y": same}}  ← KEEP position\n'
+                context += '    }}\n'
+                context += '  }}],\n'
+                context += '  "confidence": 0.95,\n'
+                context += '  "interpretation": "Updated ClassName by adding/removing..."\n'
+                context += '}}\n\n'
+                
                 base_prompt += context
+        else:
+            base_prompt += "\n\nNo existing diagram context. Creating new diagram from scratch.\n\n"
         
-        base_prompt += f"\n\nUSER COMMAND: {command}\n\nYour JSON response:"
+        base_prompt += f"USER COMMAND: {command}\n\n"
+        base_prompt += "Your JSON response (pure JSON only, no markdown):"
         
         return base_prompt
     
