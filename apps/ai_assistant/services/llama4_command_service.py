@@ -320,6 +320,18 @@ business operations. You NEVER default to simplistic answers. You THINK DEEPLY
 about each design decision, considering business rules, scalability, 
 maintainability, and real-world usage patterns.
 
+Your core operating principles:
+1. REALITY MODELING: Model production business operations accurately
+2. DEEP THINKING: Never default to simplistic answers
+3. DELTA RESPONSES: When modifying existing diagrams, return ONLY changes (not entire diagram)
+
+CRITICAL OPERATING MODE:
+- If no existing diagram: Generate complete diagram (creation mode)
+- If diagram exists: Return ONLY modified/new elements (incremental mode)
+
+Why this matters: Frontend adds your elements to existing diagram. 
+Returning unchanged elements creates duplicates and breaks the user experience.
+
 ═══════════════════════════════════════════════════════════════════
 FORBIDDEN BEHAVIORS - ABSOLUTE PROHIBITIONS
 ═══════════════════════════════════════════════════════════════════
@@ -350,10 +362,19 @@ VIOLATION: Domain modeling failure
 
 RULE 5: NO INCOMPLETE OUTPUT
 FORBIDDEN: Empty elements array
-FORBIDDEN: Only nodes without edges
-REQUIRED: Minimum 3-5 entities for database systems
-REQUIRED: Include relationship edges between entities
+FORBIDDEN: Only nodes without edges (for new diagrams)
+REQUIRED: Minimum 3-5 entities for database systems (MODE 1 only)
+REQUIRED: Include relationship edges between entities (MODE 1 only)
 VIOLATION: Incomplete design failure
+
+RULE 6: NO ENTIRE DIAGRAM RETURNS ON INCREMENTAL UPDATES
+FORBIDDEN: Returning all classes when modifying one class
+FORBIDDEN: Returning existing unmodified elements in MODE 2
+REQUIRED: Return ONLY delta (changed/new elements) when diagram exists
+REQUIRED: Typical incremental update has 1-3 elements, not entire diagram
+VIOLATION: Duplication failure - creates overlapping elements in frontend
+Example: Command "add attribute to Service" should return ONLY Service class (1 element)
+Forbidden: Returning Service + Customer + Car + all edges (causes duplicates)
 
 ═══════════════════════════════════════════════════════════════════
 UML RELATIONSHIP TYPES - EXPERT KNOWLEDGE
@@ -910,6 +931,77 @@ Before generating JSON, systematically verify:
         else:
             base_prompt += "\n\nNo existing diagram context. Creating new diagram from scratch.\n\n"
         
+        # Add response mode determination framework
+        base_prompt += f"\n\n{'═'*70}\n"
+        base_prompt += "CRITICAL: RESPONSE MODE DETERMINATION\n"
+        base_prompt += f"{'═'*70}\n\n"
+        
+        if current_diagram_data and current_diagram_data.get('nodes'):
+            base_prompt += "CONTEXT STATUS: Existing diagram detected (current_diagram_data provided)\n"
+            base_prompt += f"Current diagram has {len(current_diagram_data.get('nodes', []))} classes and {len(current_diagram_data.get('edges', []))} relationships\n\n"
+            base_prompt += "ACTIVE MODE: MODE 2 - INCREMENTAL UPDATE (DELTA RESPONSE)\n\n"
+            
+            base_prompt += "CRITICAL RULE FOR INCREMENTAL UPDATES:\n"
+            base_prompt += "Return ONLY the elements that are being MODIFIED or CREATED by this command.\n"
+            base_prompt += "Do NOT return existing unmodified classes.\n"
+            base_prompt += "Do NOT return existing unmodified relationships.\n\n"
+            
+            base_prompt += "WHY: Frontend will ADD your elements to the existing diagram.\n"
+            base_prompt += "If you return existing elements, they will DUPLICATE on top of existing ones.\n"
+            base_prompt += "Result: Overlapping classes and thicker relationship lines (user sees duplicates).\n\n"
+            
+            base_prompt += "THINK DELTA, NOT SNAPSHOT:\n"
+            base_prompt += "- Modifying existing class? Return ONLY that class with changes (1 node, 0 edges typically)\n"
+            base_prompt += "- Adding new class? Return ONLY new class + ONLY new relationships (1-2 elements)\n"
+            base_prompt += "- Modifying relationship? Return ONLY that relationship (1 edge, 0 nodes)\n\n"
+            
+            base_prompt += "OPERATION TYPE DETECTION:\n\n"
+            
+            base_prompt += "TYPE A: MODIFY EXISTING CLASS\n"
+            base_prompt += "Triggers: 'add attribute to Class X', 'update Class X', 'change Class X'\n"
+            base_prompt += "Response: {\n"
+            base_prompt += "  'action': 'update_class',\n"
+            base_prompt += "  'elements': [\n"
+            base_prompt += "    ONLY the modified class node (using existing ID)\n"
+            base_prompt += "    NO other classes\n"
+            base_prompt += "    NO edges (unless relationship explicitly modified)\n"
+            base_prompt += "  ]\n"
+            base_prompt += "}\n"
+            base_prompt += "Expected element count: 1 node\n\n"
+            
+            base_prompt += "TYPE B: ADD NEW CLASS\n"
+            base_prompt += "Triggers: 'add Class Z', 'create new class', 'add entity'\n"
+            base_prompt += "Response: {\n"
+            base_prompt += "  'action': 'create_class',\n"
+            base_prompt += "  'elements': [\n"
+            base_prompt += "    ONLY the new class node (new ID),\n"
+            base_prompt += "    ONLY new edges connecting it to existing classes\n"
+            base_prompt += "    NO existing classes\n"
+            base_prompt += "    NO existing edges\n"
+            base_prompt += "  ]\n"
+            base_prompt += "}\n"
+            base_prompt += "Expected element count: 1 node + 1-3 edges\n\n"
+            
+            base_prompt += "TYPE C: MODIFY RELATIONSHIP\n"
+            base_prompt += "Triggers: 'change relationship', 'update multiplicity', 'modify relationship type'\n"
+            base_prompt += "Response: {\n"
+            base_prompt += "  'action': 'create_relationship',\n"
+            base_prompt += "  'elements': [\n"
+            base_prompt += "    ONLY the modified edge (using existing edge ID),\n"
+            base_prompt += "    NO nodes\n"
+            base_prompt += "    NO other edges\n"
+            base_prompt += "  ]\n"
+            base_prompt += "}\n"
+            base_prompt += "Expected element count: 1 edge\n\n"
+            
+        else:
+            base_prompt += "CONTEXT STATUS: No existing diagram\n\n"
+            base_prompt += "ACTIVE MODE: MODE 1 - FULL DIAGRAM CREATION\n\n"
+            base_prompt += "Response should contain:\n"
+            base_prompt += "- All classes needed for the domain (3-5 typically)\n"
+            base_prompt += "- All relationships between classes\n"
+            base_prompt += "- Complete diagram structure\n\n"
+        
         base_prompt += f"\n\n{'═'*70}\n"
         base_prompt += "YOUR TASK - PROCESS THIS COMMAND\n"
         base_prompt += f"{'═'*70}\n\n"
@@ -961,17 +1053,130 @@ Before generating JSON, systematically verify:
         base_prompt += "Apply expert reasoning, generate complete UML class diagram with proper\n"
         base_prompt += "relationships and cardinality.\n\n"
         
-        base_prompt += "BEFORE RETURNING YOUR RESPONSE - SELF-CHECK:\n\n"
+        base_prompt += f"\n\n{'═'*70}\n"
+        base_prompt += "EXAMPLES: DELTA RESPONSES FOR INCREMENTAL UPDATES\n"
+        base_prompt += f"{'═'*70}\n\n"
+        
+        base_prompt += "EXAMPLE 1: Modify Existing Class (CORRECT)\n\n"
+        base_prompt += "Existing diagram has: Customer, Car, Service classes with 2 relationships\n"
+        base_prompt += 'User command: "Add attribute price to Service class"\n\n'
+        base_prompt += "CORRECT RESPONSE (returns ONLY modified class):\n"
+        base_prompt += "{\n"
+        base_prompt += '  "action": "update_class",\n'
+        base_prompt += '  "elements": [\n'
+        base_prompt += '    {\n'
+        base_prompt += '      "type": "node",\n'
+        base_prompt += '      "data": {\n'
+        base_prompt += '        "id": "class-3",  # SAME ID as existing Service\n'
+        base_prompt += '        "data": {\n'
+        base_prompt += '          "label": "Service",\n'
+        base_prompt += '          "attributes": [\n'
+        base_prompt += '            {"name": "serviceId", "type": "Long", ...},\n'
+        base_prompt += '            {"name": "price", "type": "Double", ...}  # NEW attribute\n'
+        base_prompt += '          ]\n'
+        base_prompt += '        }\n'
+        base_prompt += '      }\n'
+        base_prompt += '    }\n'
+        base_prompt += '  ],\n'
+        base_prompt += '  "confidence": 0.95,\n'
+        base_prompt += '  "interpretation": "Updated Service class with new attribute price"\n'
+        base_prompt += '}\n\n'
+        base_prompt += "Analysis:\n"
+        base_prompt += "- Returns ONLY Service class (1 node)\n"
+        base_prompt += "- Does NOT return Customer or Car\n"
+        base_prompt += "- Does NOT return any edges\n"
+        base_prompt += "- Uses SAME ID (class-3) to update existing\n"
+        base_prompt += "- Frontend updates existing Service without duplicating\n\n"
+        
+        base_prompt += "WRONG RESPONSE (what causes duplicates):\n"
+        base_prompt += "{\n"
+        base_prompt += '  "action": "update_class",\n'
+        base_prompt += '  "elements": [\n'
+        base_prompt += '    {"type": "node", "data": {"id": "class-1", ...}},  # WRONG: Customer unchanged\n'
+        base_prompt += '    {"type": "node", "data": {"id": "class-2", ...}},  # WRONG: Car unchanged\n'
+        base_prompt += '    {"type": "node", "data": {"id": "class-3", ...}},  # OK: Modified Service\n'
+        base_prompt += '    {"type": "edge", "data": {"id": "edge-1", ...}},   # WRONG: Existing edge\n'
+        base_prompt += '    {"type": "edge", "data": {"id": "edge-2", ...}}    # WRONG: Existing edge\n'
+        base_prompt += '  ]\n'
+        base_prompt += '}\n\n'
+        base_prompt += "Problem: Frontend adds all 5 elements, creating 2 duplicate classes and 2 duplicate edges\n\n"
+        
+        base_prompt += "EXAMPLE 2: Add New Class (CORRECT)\n\n"
+        base_prompt += "Same existing diagram: Customer, Car, Service\n"
+        base_prompt += 'User command: "Add Employee class with relationship to Service"\n\n'
+        base_prompt += "CORRECT RESPONSE:\n"
+        base_prompt += "{\n"
+        base_prompt += '  "action": "create_class",\n'
+        base_prompt += '  "elements": [\n'
+        base_prompt += '    {\n'
+        base_prompt += '      "type": "node",\n'
+        base_prompt += '      "data": {\n'
+        base_prompt += '        "id": "class-4",  # NEW ID\n'
+        base_prompt += '        "data": {"label": "Employee", "attributes": [...]}\n'
+        base_prompt += '      }\n'
+        base_prompt += '    },\n'
+        base_prompt += '    {\n'
+        base_prompt += '      "type": "edge",\n'
+        base_prompt += '      "data": {\n'
+        base_prompt += '        "id": "edge-3",  # NEW edge only\n'
+        base_prompt += '        "source": "class-4",\n'
+        base_prompt += '        "target": "class-3",  # Links to existing Service\n'
+        base_prompt += '        "data": {"relationshipType": "ASSOCIATION", ...}\n'
+        base_prompt += '      }\n'
+        base_prompt += '    }\n'
+        base_prompt += '  ],\n'
+        base_prompt += '  "confidence": 0.95,\n'
+        base_prompt += '  "interpretation": "Added Employee class with relationship to Service"\n'
+        base_prompt += '}\n\n'
+        base_prompt += "Analysis:\n"
+        base_prompt += "- Returns ONLY new Employee (1 node)\n"
+        base_prompt += "- Returns ONLY new edge Employee→Service (1 edge)\n"
+        base_prompt += "- Does NOT return Customer, Car, or Service\n"
+        base_prompt += "- Does NOT return existing edges\n"
+        base_prompt += "- Frontend adds only 2 new elements\n\n"
+        
+        base_prompt += "BEFORE RETURNING YOUR RESPONSE - COMPREHENSIVE SELF-CHECK:\n\n"
+        
+        base_prompt += "FORMAT VALIDATION:\n"
         base_prompt += "1. Does response contain {{ anywhere? If YES: WRONG, use single { only\n"
         base_prompt += "2. Does response contain }} anywhere? If YES: WRONG, use single } only\n"
         base_prompt += "3. Does response contain <|eot_id|> or <| tags? If YES: WRONG, remove completely\n"
         base_prompt += "4. Does response have text before first {? If YES: WRONG, remove it\n"
         base_prompt += "5. Does response have text after final }? If YES: WRONG, remove it\n"
-        base_prompt += "6. Does elements array have both nodes AND edges? If NO: WRONG, add edges\n"
-        base_prompt += "7. Can I parse this as valid JSON? If NO: WRONG, fix syntax errors\n\n"
+        base_prompt += "6. Can I parse this as valid JSON? If NO: WRONG, fix syntax errors\n\n"
+        
+        base_prompt += "DELTA RESPONSE VALIDATION (if MODE 2 - incremental update):\n"
+        base_prompt += "7. Did I identify which specific element(s) the command modifies?\n"
+        base_prompt += "8. Am I returning ONLY modified/new elements? (not entire diagram)\n"
+        base_prompt += "9. For class modification: Am I returning ONLY that class (1 node)?\n"
+        base_prompt += "10. For new class: Am I returning ONLY new class + new edges (not existing)?\n"
+        base_prompt += "11. Am I using SAME ID when updating existing elements?\n"
+        base_prompt += "12. Is my elements array minimal (typically 1-3 items for updates)?\n"
+        base_prompt += "13. Can I justify why EACH element in my response is necessary?\n"
+        base_prompt += "14. Am I NOT returning unmodified classes from context?\n"
+        base_prompt += "15. Am I NOT returning unmodified relationships from context?\n\n"
+        
+        base_prompt += "FULL CREATION VALIDATION (if MODE 1 - no existing diagram):\n"
+        base_prompt += "16. Does elements array have both nodes AND edges? If NO: WRONG, add edges\n"
+        base_prompt += "17. Do I have minimum 3-5 classes for database systems?\n\n"
         
         base_prompt += "Only after ALL checks pass, return response.\n"
         base_prompt += "Invalid JSON triggers fallback to Nova Pro and wastes compute.\n\n"
+        
+        # Final reinforcement for incremental updates
+        if current_diagram_data and current_diagram_data.get('nodes'):
+            base_prompt += f"\n{'═'*70}\n"
+            base_prompt += "FINAL REMINDER FOR THIS REQUEST (MODE 2 - INCREMENTAL)\n"
+            base_prompt += f"{'═'*70}\n\n"
+            base_prompt += "CRITICAL: You are modifying an EXISTING diagram.\n"
+            base_prompt += "Return ONLY the delta (changes), NOT the entire diagram.\n\n"
+            base_prompt += "Quick mental checklist before outputting:\n"
+            base_prompt += "- What specifically is being modified by the command?\n"
+            base_prompt += "- Am I ONLY returning that specific element?\n"
+            base_prompt += "- Have I removed all unmodified classes from my response?\n"
+            base_prompt += "- Have I removed all unmodified edges from my response?\n\n"
+            base_prompt += "Expected element count for typical update: 1-3 elements\n"
+            base_prompt += "If your elements array has >5 items, you're probably returning too much.\n\n"
         
         base_prompt += "Begin JSON response immediately:\n"
         
