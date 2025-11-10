@@ -355,7 +355,6 @@ class OpenAIService:
         
         content = None
         
-        # STRATEGY 1: Standard message.content (works for gpt-4, gpt-4o)
         try:
             if hasattr(response.choices[0], 'message') and hasattr(response.choices[0].message, 'content'):
                 content = response.choices[0].message.content
@@ -367,7 +366,6 @@ class OpenAIService:
         except (AttributeError, IndexError) as e:
             logger.warning(f"[FAIL] Strategy 1 failed: {e}")
         
-        # STRATEGY 2: o-series text attribute (may work for o-series)
         try:
             if hasattr(response.choices[0], 'text'):
                 content = response.choices[0].text
@@ -379,7 +377,6 @@ class OpenAIService:
         except (AttributeError, IndexError) as e:
             logger.warning(f"[FAIL] Strategy 2 failed: {e}")
         
-        # STRATEGY 3: o-series reasoning_content (for o-series with reasoning)
         try:
             if hasattr(response.choices[0], 'message') and hasattr(response.choices[0].message, 'reasoning_content'):
                 reasoning = response.choices[0].message.reasoning_content
@@ -392,7 +389,6 @@ class OpenAIService:
         except (AttributeError, IndexError) as e:
             logger.warning(f"[FAIL] Strategy 3 failed: {e}")
         
-        # STRATEGY 4: Dictionary access via model_dump()
         try:
             response_dict = response.model_dump()
             logger.info(f"Response dict keys: {response_dict.keys()}")
@@ -411,7 +407,6 @@ class OpenAIService:
         except Exception as e:
             logger.warning(f"[FAIL] Strategy 4 failed: {e}")
         
-        # STRATEGY 5: JSON serialization fallback
         try:
             import json
             response_json = response.model_dump_json()
@@ -426,7 +421,6 @@ class OpenAIService:
         except Exception as e:
             logger.warning(f"[FAIL] Strategy 5 failed: {e}")
         
-        # ALL STRATEGIES FAILED - Log full response and raise error
         logger.error("=" * 80)
         logger.error("CRITICAL: ALL EXTRACTION STRATEGIES FAILED")
         logger.error("=" * 80)
