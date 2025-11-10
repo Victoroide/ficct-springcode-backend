@@ -840,7 +840,7 @@ RESPOND IN JSON FORMAT:
             
             response = self._call_openai_api(
                 messages=messages,
-                max_tokens=2000,  # Reduced from 3000 for faster responses
+                max_tokens=5000,  # Increased for o4-mini: needs tokens for reasoning (2000+) + output (2000+)
                 temperature=0.7,
                 response_format=None,
             )
