@@ -924,12 +924,28 @@ Before generating JSON, systematically verify:
         base_prompt += "5. Generate BOTH nodes AND edges in elements array\n"
         base_prompt += "6. Validate against checklist before output\n\n"
         
-        base_prompt += "CRITICAL OUTPUT RULES:\n"
-        base_prompt += "- Response MUST start with {{ (opening brace)\n"
-        base_prompt += "- Response MUST end with }} (closing brace)\n"
-        base_prompt += "- NO text before opening brace\n"
-        base_prompt += "- NO text after closing brace\n"
-        base_prompt += "- NO markdown formatting\n"
+        base_prompt += "CRITICAL OUTPUT RULES:\n\n"
+        
+        base_prompt += "YOUR RESPONSE MUST START WITH {{ AND END WITH }}\n\n"
+        
+        base_prompt += "Example of CORRECT start:\n"
+        base_prompt += "{{\n"
+        base_prompt += '  "action": "create_class",\n'
+        base_prompt += '  "elements": [...]\n'
+        base_prompt += "}}\n\n"
+        
+        base_prompt += "Example of WRONG start (missing opening brace):\n"
+        base_prompt += '  "action": "create_class",    ← WRONG, missing {{\n'
+        base_prompt += '  "elements": [...]\n\n'
+        
+        base_prompt += "MANDATORY REQUIREMENTS:\n"
+        base_prompt += "- First character MUST be {{ (opening brace)\n"
+        base_prompt += "- Last character MUST be }} (closing brace)\n"
+        base_prompt += "- NO whitespace before opening brace\n"
+        base_prompt += "- NO whitespace after closing brace\n"
+        base_prompt += "- NO text before {{\n"
+        base_prompt += "- NO text after }}\n"
+        base_prompt += "- NO markdown code blocks\n"
         base_prompt += "- NO explanatory comments\n"
         base_prompt += "- ONLY valid JSON object\n\n"
         
@@ -981,20 +997,23 @@ Before generating JSON, systematically verify:
         formatted = "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n"
         formatted += base_prompt
         # CRITICAL: Use SINGLE brace to prime JSON, not double brace
-        formatted += "\n<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>\n{"
+        # Put opening brace immediately after assistant header to force proper JSON start
+        formatted += "\n<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>\n\n{"
         
         return formatted
     
     def _preprocess_response(self, response_text: str) -> str:
         """
-        Preprocess response to remove Llama 4 format tags and clean up.
+        Preprocess response to remove Llama 4 format tags and fix missing braces.
         
         Args:
             response_text: Raw response from Llama 4
             
         Returns:
-            Cleaned response text
+            Cleaned response text with valid JSON structure
         """
+        original_length = len(response_text)
+        
         # Remove Llama 4 format tags that may leak into output
         cleaned = response_text.replace('<|eot_id|>', '')
         cleaned = cleaned.replace('<|begin_of_text|>', '')
@@ -1005,7 +1024,22 @@ Before generating JSON, systematically verify:
         # Strip whitespace
         cleaned = cleaned.strip()
         
-        logger.info(f"[PREPROCESSING] Removed {len(response_text) - len(cleaned)} chars of format tags")
+        logger.info(f"[PREPROCESSING] Removed {original_length - len(cleaned)} chars of format tags")
+        logger.info(f"[PREPROCESSING] First 100 chars after cleanup: {cleaned[:100]}")
+        
+        # CRITICAL FIX: Add missing opening brace
+        if not cleaned.startswith('{'):
+            logger.warning("[PREPROCESSING] Response missing opening brace, adding it")
+            logger.warning(f"[PREPROCESSING] Original start: {cleaned[:50]}")
+            cleaned = '{' + cleaned
+        
+        # CRITICAL FIX: Add missing closing brace
+        if not cleaned.endswith('}'):
+            logger.warning("[PREPROCESSING] Response missing closing brace, adding it")
+            logger.warning(f"[PREPROCESSING] Original end: {cleaned[-50:]}")
+            cleaned = cleaned + '}'
+        
+        logger.info(f"[PREPROCESSING] Final length: {len(cleaned)} chars")
         
         return cleaned
     
@@ -1060,6 +1094,19 @@ Before generating JSON, systematically verify:
                     logger.info(f"[PARSING] Action: {result.get('action')}")
                     logger.info(f"[PARSING] Elements count: {len(result.get('elements', []))}")
                     
+                    # CRITICAL VALIDATION: Check if we got a nested object instead of root
+                    if 'action' not in result:
+                        logger.error("[PARSING] Result missing 'action' field - likely extracted nested object")
+                        if 'type' in result:
+                            logger.error(f"[PARSING] Found 'type' field with value '{result.get('type')}' - this is a nested node/edge, not root")
+                        logger.error(f"[PARSING] All keys: {list(result.keys())}")
+                        continue  # Try next strategy
+                    
+                    if 'elements' not in result:
+                        logger.error("[PARSING] Result missing 'elements' field")
+                        logger.error(f"[PARSING] All keys: {list(result.keys())}")
+                        continue  # Try next strategy
+                    
                     validated_result = self._validate_and_normalize_result(result)
                     logger.info(f"[PARSING] After validation - Action: {validated_result.get('action')}, Elements: {len(validated_result.get('elements', []))}")
                     return validated_result
@@ -1070,7 +1117,43 @@ Before generating JSON, systematically verify:
                 continue
         
         logger.error(f"[PARSING] ALL {len(strategies)} STRATEGIES FAILED")
-        logger.error(f"[PARSING] Full response text:\n{response_text}")
+        logger.error(f"[PARSING] Full response text ({len(response_text)} chars):\n{response_text}")
+        
+        # Diagnose common failure patterns
+        logger.error("[PARSING] DIAGNOSTIC ANALYSIS:")
+        
+        if '"action"' in response_text:
+            logger.error("[PARSING] ✓ Found 'action' keyword in response")
+            action_pos = response_text.find('"action"')
+            logger.error(f"[PARSING]   Position: {action_pos}")
+            logger.error(f"[PARSING]   Context: {response_text[max(0, action_pos-30):action_pos+50]}")
+        else:
+            logger.error("[PARSING] ✗ No 'action' keyword found - Llama 4 generated wrong format")
+        
+        if '"elements"' in response_text:
+            logger.error("[PARSING] ✓ Found 'elements' keyword in response")
+        else:
+            logger.error("[PARSING] ✗ No 'elements' keyword found")
+        
+        if response_text.strip().startswith('{'):
+            logger.error("[PARSING] ✓ Response starts with opening brace")
+        else:
+            logger.error("[PARSING] ✗ Response missing opening brace")
+            logger.error(f"[PARSING]   First 50 chars: {response_text[:50]}")
+        
+        if response_text.strip().endswith('}'):
+            logger.error("[PARSING] ✓ Response ends with closing brace")
+        else:
+            logger.error("[PARSING] ✗ Response missing closing brace")
+            logger.error(f"[PARSING]   Last 50 chars: {response_text[-50:]}")
+        
+        # Count braces
+        open_braces = response_text.count('{')
+        close_braces = response_text.count('}')
+        logger.error(f"[PARSING] Brace count: {{ = {open_braces}, }} = {close_braces}")
+        
+        if open_braces != close_braces:
+            logger.error("[PARSING] ✗ Unbalanced braces - JSON structure invalid")
         
         return {
             'action': 'error',
@@ -1078,7 +1161,15 @@ Before generating JSON, systematically verify:
             'confidence': 0.0,
             'interpretation': 'Could not parse Llama 4 Maverick response',
             'error': 'Failed to extract valid JSON from all strategies',
-            'raw_response_preview': response_text[:500]
+            'raw_response_preview': response_text[:500],
+            'diagnostics': {
+                'has_action': '"action"' in response_text,
+                'has_elements': '"elements"' in response_text,
+                'starts_with_brace': response_text.strip().startswith('{'),
+                'ends_with_brace': response_text.strip().endswith('}'),
+                'open_braces': open_braces,
+                'close_braces': close_braces
+            }
         }
     
     def _validate_and_normalize_result(self, result: Dict) -> Dict[str, Any]:
@@ -1130,7 +1221,7 @@ Before generating JSON, systematically verify:
     
     def _try_complete_json_extraction(self, text: str) -> Optional[Dict]:
         """
-        Comprehensive JSON extraction strategy.
+        Comprehensive JSON extraction strategy with validation.
         
         Finds the "action" keyword and extracts complete JSON object
         using brace counting while respecting strings and escaping.
@@ -1142,7 +1233,7 @@ Before generating JSON, systematically verify:
             text: Response text to parse
             
         Returns:
-            Parsed JSON dict or None
+            Parsed JSON dict with action and elements, or None
         """
         logger.debug("[COMPLETE_EXTRACTION] Starting comprehensive extraction")
         
@@ -1153,17 +1244,22 @@ Before generating JSON, systematically verify:
             return None
         
         # Search backwards from action to find opening brace
-        # (look up to 50 chars before action)
+        # (look up to 100 chars before action to handle leading whitespace)
         start_index = -1
-        search_start = max(0, action_index - 50)
-        for i in range(action_index, search_start - 1, -1):
+        search_start = max(0, action_index - 100)
+        for i in range(action_index - 1, search_start - 1, -1):
             if text[i] == '{':
                 start_index = i
                 break
         
         if start_index == -1:
-            logger.debug("[COMPLETE_EXTRACTION] No opening brace found before 'action'")
-            return None
+            logger.warning("[COMPLETE_EXTRACTION] No opening brace found before 'action'")
+            logger.warning("[COMPLETE_EXTRACTION] This means Llama 4 didn't output opening brace")
+            logger.warning(f"[COMPLETE_EXTRACTION] Text before action: {text[max(0, action_index-50):action_index]}")
+            
+            # Emergency fix: Assume text starts at beginning
+            start_index = 0
+            logger.warning("[COMPLETE_EXTRACTION] Using start of text as JSON start")
         
         logger.debug(f"[COMPLETE_EXTRACTION] Found opening brace at position {start_index}")
         
@@ -1205,8 +1301,25 @@ Before generating JSON, systematically verify:
                         
                         try:
                             parsed = json.loads(json_text)
-                            logger.info(f"[COMPLETE_EXTRACTION] SUCCESS - parsed JSON with {len(parsed.get('elements', []))} elements")
+                            
+                            # CRITICAL VALIDATION: Check for required fields
+                            if 'action' not in parsed:
+                                logger.warning("[COMPLETE_EXTRACTION] Parsed JSON missing 'action' field")
+                                logger.warning(f"[COMPLETE_EXTRACTION] Keys found: {list(parsed.keys())}")
+                                return None
+                            
+                            if 'elements' not in parsed:
+                                logger.warning("[COMPLETE_EXTRACTION] Parsed JSON missing 'elements' field")
+                                logger.warning(f"[COMPLETE_EXTRACTION] Keys found: {list(parsed.keys())}")
+                                return None
+                            
+                            if not isinstance(parsed['elements'], list):
+                                logger.warning(f"[COMPLETE_EXTRACTION] 'elements' is not a list: {type(parsed['elements'])}")
+                                return None
+                            
+                            logger.info(f"[COMPLETE_EXTRACTION] SUCCESS - validated JSON with action='{parsed['action']}' and {len(parsed['elements'])} elements")
                             return parsed
+                            
                         except json.JSONDecodeError as e:
                             logger.warning(f"[COMPLETE_EXTRACTION] JSON parse error: {e}")
                             return None
@@ -1228,21 +1341,78 @@ Before generating JSON, systematically verify:
         return None
     
     def _try_brace_counting(self, text: str) -> Optional[Dict]:
-        """Extract JSON by finding balanced braces."""
-        first_brace = text.find('{')
-        if first_brace == -1:
+        """
+        Extract JSON by finding balanced braces with validation.
+        
+        Tries multiple opening brace positions to find the root object
+        that contains 'action' and 'elements' fields.
+        """
+        # Find all potential opening brace positions
+        potential_starts = [i for i, char in enumerate(text) if char == '{']
+        
+        if not potential_starts:
+            logger.debug("[BRACE_COUNTING] No opening braces found")
             return None
         
-        brace_count = 0
-        for i in range(first_brace, len(text)):
-            if text[i] == '{':
-                brace_count += 1
-            elif text[i] == '}':
-                brace_count -= 1
-                if brace_count == 0:
-                    json_str = text[first_brace:i+1]
-                    return json.loads(json_str)
+        logger.debug(f"[BRACE_COUNTING] Found {len(potential_starts)} potential opening braces")
         
+        # Try each potential start position
+        for start_idx, start_pos in enumerate(potential_starts):
+            logger.debug(f"[BRACE_COUNTING] Trying brace position {start_idx + 1}/{len(potential_starts)} at char {start_pos}")
+            
+            brace_count = 0
+            in_string = False
+            escape = False
+            
+            for i in range(start_pos, len(text)):
+                char = text[i]
+                
+                # Handle escape sequences
+                if escape:
+                    escape = False
+                    continue
+                
+                if char == '\\':
+                    escape = True
+                    continue
+                
+                # Handle string boundaries
+                if char == '"':
+                    in_string = not in_string
+                    continue
+                
+                # Only count braces outside strings
+                if not in_string:
+                    if char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        
+                        # Found matching closing brace
+                        if brace_count == 0:
+                            json_str = text[start_pos:i+1]
+                            logger.debug(f"[BRACE_COUNTING] Extracted {len(json_str)} chars from position {start_pos}")
+                            
+                            try:
+                                parsed = json.loads(json_str)
+                                
+                                # Validate this is the root object we want
+                                if 'action' in parsed and 'elements' in parsed:
+                                    logger.info(f"[BRACE_COUNTING] SUCCESS - found root object with action and {len(parsed['elements'])} elements")
+                                    return parsed
+                                else:
+                                    logger.debug(f"[BRACE_COUNTING] Valid JSON but missing required fields (keys: {list(parsed.keys())})")
+                                    # Continue to try next brace position
+                                    break
+                                    
+                            except json.JSONDecodeError as e:
+                                logger.debug(f"[BRACE_COUNTING] JSON parse error at position {start_pos}: {e}")
+                                # Continue to try next brace position
+                                break
+            
+            # If we get here, this start position didn't work, try next
+        
+        logger.debug("[BRACE_COUNTING] All brace positions exhausted without finding valid root object")
         return None
     
     def _try_json_block_extraction(self, text: str) -> Optional[Dict]:
