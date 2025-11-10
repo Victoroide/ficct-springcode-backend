@@ -123,8 +123,7 @@ class Llama4CommandService:
                 "prompt": formatted_prompt,
                 "max_gen_len": 6000,
                 "temperature": 0.1,
-                "top_p": 0.9,
-                "repeat_penalty": 1.1
+                "top_p": 0.9
             }
             
             response = self.client.invoke_model(
