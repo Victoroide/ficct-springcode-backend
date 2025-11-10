@@ -278,6 +278,26 @@ class Llama4CommandService:
         timestamp_ms = int(time.time() * 1000)
         
         base_prompt = f"""═══════════════════════════════════════════════════════════════════
+JSON FORMATTING RULES (CRITICAL - READ FIRST)
+═══════════════════════════════════════════════════════════════════
+
+ABSOLUTE REQUIREMENTS:
+1. Use SINGLE braces for objects: CORRECT {{ WRONG {{{{
+2. Use SINGLE brackets for arrays: [ ] CORRECT [[ ]] WRONG
+3. Use double quotes for strings: "key" NOT 'key'
+4. NO double braces {{{{ }}}} anywhere in your output
+5. NO format tags <| or |> in your output
+6. NO markdown code blocks ``` in your output
+7. Pure valid JSON only - parseable by standard JSON parser
+
+FORBIDDEN OUTPUT PATTERNS (will cause immediate failure):
+- {{{{ or }}}} (double braces) 
+- <|eot_id|> or any <| |> tags
+- ``` or ```json (markdown)
+- Any text before opening brace
+- Any text after closing brace
+
+═══════════════════════════════════════════════════════════════════
 EXPERT IDENTITY: Senior Database Architect and UML Specialist
 ═══════════════════════════════════════════════════════════════════
 
@@ -572,103 +592,108 @@ CRITICAL: Elements array must contain BOTH nodes (classes) AND edges (relationsh
 
 COMPLETE EXAMPLE FOR "ice cream shop database":
 
-{{
+"""
+        # Use raw string to avoid double brace escaping
+        example_json = '''{
   "action": "create_class",
   "elements": [
-    {{
+    {
       "type": "node",
-      "data": {{
-        "id": "class-{timestamp_ms}-1",
-        "data": {{
+      "data": {
+        "id": "class-TIMESTAMP-1",
+        "data": {
           "label": "Customer",
           "nodeType": "class",
           "isAbstract": false,
           "attributes": [
-            {{"id": "attr-1-1", "name": "id", "type": "Long", "visibility": "private", "isStatic": false, "isFinal": false}},
-            {{"id": "attr-1-2", "name": "nombre", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false}},
-            {{"id": "attr-1-3", "name": "email", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false}}
+            {"id": "attr-1-1", "name": "id", "type": "Long", "visibility": "private", "isStatic": false, "isFinal": false},
+            {"id": "attr-1-2", "name": "nombre", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false},
+            {"id": "attr-1-3", "name": "email", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false}
           ],
           "methods": []
-        }},
-        "position": {{"x": 100, "y": 100}}
-      }}
-    }},
-    {{
+        },
+        "position": {"x": 100, "y": 100}
+      }
+    },
+    {
       "type": "node",
-      "data": {{
-        "id": "class-{timestamp_ms}-2",
-        "data": {{
+      "data": {
+        "id": "class-TIMESTAMP-2",
+        "data": {
           "label": "Sale",
           "nodeType": "class",
           "isAbstract": false,
           "attributes": [
-            {{"id": "attr-2-1", "name": "id", "type": "Long", "visibility": "private", "isStatic": false, "isFinal": false}},
-            {{"id": "attr-2-2", "name": "fecha", "type": "Date", "visibility": "private", "isStatic": false, "isFinal": false}},
-            {{"id": "attr-2-3", "name": "total", "type": "Double", "visibility": "private", "isStatic": false, "isFinal": false}}
+            {"id": "attr-2-1", "name": "id", "type": "Long", "visibility": "private", "isStatic": false, "isFinal": false},
+            {"id": "attr-2-2", "name": "fecha", "type": "Date", "visibility": "private", "isStatic": false, "isFinal": false},
+            {"id": "attr-2-3", "name": "total", "type": "Double", "visibility": "private", "isStatic": false, "isFinal": false}
           ],
           "methods": []
-        }},
-        "position": {{"x": 400, "y": 100}}
-      }}
-    }},
-    {{
+        },
+        "position": {"x": 400, "y": 100}
+      }
+    },
+    {
       "type": "node",
-      "data": {{
-        "id": "class-{timestamp_ms}-3",
-        "data": {{
+      "data": {
+        "id": "class-TIMESTAMP-3",
+        "data": {
           "label": "Product",
           "nodeType": "class",
           "isAbstract": false,
           "attributes": [
-            {{"id": "attr-3-1", "name": "id", "type": "Long", "visibility": "private", "isStatic": false, "isFinal": false}},
-            {{"id": "attr-3-2", "name": "nombre", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false}},
-            {{"id": "attr-3-3", "name": "precio", "type": "Double", "visibility": "private", "isStatic": false, "isFinal": false}}
+            {"id": "attr-3-1", "name": "id", "type": "Long", "visibility": "private", "isStatic": false, "isFinal": false},
+            {"id": "attr-3-2", "name": "nombre", "type": "String", "visibility": "private", "isStatic": false, "isFinal": false},
+            {"id": "attr-3-3", "name": "precio", "type": "Double", "visibility": "private", "isStatic": false, "isFinal": false}
           ],
           "methods": []
-        }},
-        "position": {{"x": 700, "y": 100}}
-      }}
-    }},
-    {{
+        },
+        "position": {"x": 700, "y": 100}
+      }
+    },
+    {
       "type": "edge",
-      "data": {{
-        "id": "edge-{timestamp_ms}-1",
-        "source": "class-{timestamp_ms}-1",
-        "target": "class-{timestamp_ms}-2",
+      "data": {
+        "id": "edge-TIMESTAMP-1",
+        "source": "class-TIMESTAMP-1",
+        "target": "class-TIMESTAMP-2",
         "type": "umlRelationship",
-        "data": {{
+        "data": {
           "relationshipType": "ASSOCIATION",
           "sourceMultiplicity": "1",
           "targetMultiplicity": "*",
           "label": "places"
-        }}
-      }}
-    }},
-    {{
+        }
+      }
+    },
+    {
       "type": "edge",
-      "data": {{
-        "id": "edge-{timestamp_ms}-2",
-        "source": "class-{timestamp_ms}-2",
-        "target": "class-{timestamp_ms}-3",
+      "data": {
+        "id": "edge-TIMESTAMP-2",
+        "source": "class-TIMESTAMP-2",
+        "target": "class-TIMESTAMP-3",
         "type": "umlRelationship",
-        "data": {{
+        "data": {
           "relationshipType": "COMPOSITION",
           "sourceMultiplicity": "1",
           "targetMultiplicity": "*",
           "label": "contains"
-        }}
-      }}
-    }}
+        }
+      }
+    }
   ],
   "confidence": 0.95,
   "interpretation": "Created ice cream shop database with 3 entities and 2 relationships using proper cardinality"
-}}
+}'''
+        base_prompt += example_json.replace('TIMESTAMP', str(timestamp_ms)) + "\n\n"
+        
+        base_prompt += """
 
 KEY REQUIREMENTS:
 1. Include BOTH node and edge objects in elements array
 2. Node structure: type="node", data with id, data nested object, position
 3. Edge structure: type="edge", data with id, source, target, type="umlRelationship", data with relationshipType
-4. Use unique IDs with timestamp: class-{timestamp_ms}-1, edge-{timestamp_ms}-1
+4. Use unique IDs with timestamp (replace TIMESTAMP with actual value)
 5. Source and target in edges must match node IDs exactly
 
 RELATIONSHIP TYPES (select appropriate):
@@ -918,7 +943,21 @@ Before generating JSON, systematically verify:
         
         base_prompt += "NOW EXECUTE:\n"
         base_prompt += "Apply expert reasoning, generate complete UML class diagram with proper\n"
-        base_prompt += "relationships and cardinality. Begin JSON response immediately:\n"
+        base_prompt += "relationships and cardinality.\n\n"
+        
+        base_prompt += "BEFORE RETURNING YOUR RESPONSE - SELF-CHECK:\n\n"
+        base_prompt += "1. Does response contain {{ anywhere? If YES: WRONG, use single { only\n"
+        base_prompt += "2. Does response contain }} anywhere? If YES: WRONG, use single } only\n"
+        base_prompt += "3. Does response contain <|eot_id|> or <| tags? If YES: WRONG, remove completely\n"
+        base_prompt += "4. Does response have text before first {? If YES: WRONG, remove it\n"
+        base_prompt += "5. Does response have text after final }? If YES: WRONG, remove it\n"
+        base_prompt += "6. Does elements array have both nodes AND edges? If NO: WRONG, add edges\n"
+        base_prompt += "7. Can I parse this as valid JSON? If NO: WRONG, fix syntax errors\n\n"
+        
+        base_prompt += "Only after ALL checks pass, return response.\n"
+        base_prompt += "Invalid JSON triggers fallback to Nova Pro and wastes compute.\n\n"
+        
+        base_prompt += "Begin JSON response immediately:\n"
         
         return base_prompt
     
@@ -931,7 +970,7 @@ Before generating JSON, systematically verify:
         - <|start_header_id|>user<|end_header_id|> for user role
         - <|eot_id|> for end of turn
         - <|start_header_id|>assistant<|end_header_id|> for assistant role
-        - Prime with {{ to start JSON generation immediately
+        - Prime with single { to start JSON generation immediately
         
         Args:
             base_prompt: The base prompt content
@@ -941,9 +980,34 @@ Before generating JSON, systematically verify:
         """
         formatted = "<|begin_of_text|><|start_header_id|>user<|end_header_id|>\n"
         formatted += base_prompt
-        formatted += "\n<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>\n{{"
+        # CRITICAL: Use SINGLE brace to prime JSON, not double brace
+        formatted += "\n<|eot_id|>\n<|start_header_id|>assistant<|end_header_id|>\n{"
         
         return formatted
+    
+    def _preprocess_response(self, response_text: str) -> str:
+        """
+        Preprocess response to remove Llama 4 format tags and clean up.
+        
+        Args:
+            response_text: Raw response from Llama 4
+            
+        Returns:
+            Cleaned response text
+        """
+        # Remove Llama 4 format tags that may leak into output
+        cleaned = response_text.replace('<|eot_id|>', '')
+        cleaned = cleaned.replace('<|begin_of_text|>', '')
+        cleaned = cleaned.replace('<|start_header_id|>assistant<|end_header_id|>', '')
+        cleaned = cleaned.replace('<|start_header_id|>user<|end_header_id|>', '')
+        cleaned = cleaned.replace('<|end_header_id|>', '')
+        
+        # Strip whitespace
+        cleaned = cleaned.strip()
+        
+        logger.info(f"[PREPROCESSING] Removed {len(response_text) - len(cleaned)} chars of format tags")
+        
+        return cleaned
     
     def _parse_response(self, response_text: str) -> Dict[str, Any]:
         """
@@ -972,12 +1036,18 @@ Before generating JSON, systematically verify:
                 'error': 'No output generated'
             }
         
+        # CRITICAL: Preprocess to remove format tags
+        response_text = self._preprocess_response(response_text)
+        logger.info(f"[PARSING] After preprocessing: {len(response_text)} chars")
+        logger.info(f"[PARSING] Cleaned preview (first 300 chars): {response_text[:300]}")
+        
         strategies = [
+            self._try_complete_json_extraction,  # NEW: Comprehensive extraction
             self._try_direct_parse,
-            self._try_markdown_extraction,
             self._try_brace_counting,
+            self._try_markdown_extraction,
             self._try_json_block_extraction,
-            self._try_last_valid_json
+            self._try_last_valid_json  # LAST RESORT
         ]
         
         for i, strategy in enumerate(strategies, 1):
@@ -1057,6 +1127,92 @@ Before generating JSON, systematically verify:
         logger.info(f"[VALIDATION] Normalized result: action={normalized['action']}, elements={len(normalized['elements'])}, confidence={normalized['confidence']}")
         
         return normalized
+    
+    def _try_complete_json_extraction(self, text: str) -> Optional[Dict]:
+        """
+        Comprehensive JSON extraction strategy.
+        
+        Finds the "action" keyword and extracts complete JSON object
+        using brace counting while respecting strings and escaping.
+        
+        This strategy avoids the problem of _try_last_valid_json which
+        only returns the last object, losing array content.
+        
+        Args:
+            text: Response text to parse
+            
+        Returns:
+            Parsed JSON dict or None
+        """
+        logger.debug("[COMPLETE_EXTRACTION] Starting comprehensive extraction")
+        
+        # Find "action" keyword (indicates start of our JSON)
+        action_index = text.find('"action"')
+        if action_index == -1:
+            logger.debug("[COMPLETE_EXTRACTION] No 'action' keyword found")
+            return None
+        
+        # Search backwards from action to find opening brace
+        # (look up to 50 chars before action)
+        start_index = -1
+        search_start = max(0, action_index - 50)
+        for i in range(action_index, search_start - 1, -1):
+            if text[i] == '{':
+                start_index = i
+                break
+        
+        if start_index == -1:
+            logger.debug("[COMPLETE_EXTRACTION] No opening brace found before 'action'")
+            return None
+        
+        logger.debug(f"[COMPLETE_EXTRACTION] Found opening brace at position {start_index}")
+        
+        # Use brace counting to find matching closing brace
+        # Properly handle strings and escape sequences
+        brace_count = 0
+        in_string = False
+        escape_next = False
+        
+        for i in range(start_index, len(text)):
+            char = text[i]
+            
+            # Handle escape sequences
+            if escape_next:
+                escape_next = False
+                continue
+            
+            if char == '\\':
+                escape_next = True
+                continue
+            
+            # Handle string boundaries
+            if char == '"':
+                in_string = not in_string
+                continue
+            
+            # Only count braces outside of strings
+            if not in_string:
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    
+                    # Found matching closing brace
+                    if brace_count == 0:
+                        json_text = text[start_index:i+1]
+                        logger.debug(f"[COMPLETE_EXTRACTION] Extracted {len(json_text)} chars of JSON")
+                        logger.debug(f"[COMPLETE_EXTRACTION] JSON preview: {json_text[:200]}...")
+                        
+                        try:
+                            parsed = json.loads(json_text)
+                            logger.info(f"[COMPLETE_EXTRACTION] SUCCESS - parsed JSON with {len(parsed.get('elements', []))} elements")
+                            return parsed
+                        except json.JSONDecodeError as e:
+                            logger.warning(f"[COMPLETE_EXTRACTION] JSON parse error: {e}")
+                            return None
+        
+        logger.debug("[COMPLETE_EXTRACTION] No matching closing brace found")
+        return None
     
     def _try_direct_parse(self, text: str) -> Optional[Dict]:
         """Try parsing text directly as JSON."""
