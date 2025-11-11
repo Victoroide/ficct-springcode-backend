@@ -1,3 +1,4 @@
+
 # FICCT UML Collaborative Tool - Architecture Overview
 
 **Last Updated:** 2025-11-10  
@@ -74,6 +75,8 @@ ficct-springcode-backend/
 ├── apps/
 │   ├── uml_diagrams/          # Diagram management
 │   │   ├── models/
+## GLOSSARY OF TERMS
+
 │   │   │   └── uml_diagram.py # ONLY model used
 │   │   ├── viewsets/
 │   │   │   └── anonymous_diagram_viewset.py  # ONLY viewset
@@ -87,6 +90,8 @@ ficct-springcode-backend/
 │   │   ├── routing.py         # WebSocket URL routing
 │   │   └── middleware.py      # Session extraction
 │   │
+## RESOURCES & USEFUL LINKS
+
 │   ├── ai_assistant/          # AI-powered features
 │   │   ├── views.py
 │   │   ├── serializers.py
@@ -1081,3 +1086,34 @@ curl -X POST http://localhost:8000/api/ai-assistant/diagrams/from-image/ \
 **Architecture Status:** ✅ OPTIMIZED AND PRODUCTION-READY WITH EXPERT AI
 
 This architecture provides a **lean, focused backend** for anonymous collaborative UML diagramming with **multi-model AI intelligence**, advanced prompt engineering, expert reasoning protocols, and real-time features, eliminating all unnecessary complexity while delivering professional-grade diagram generation.
+
+# ---
+#
+# GLOSSARY OF TERMS
+#
+# - **Delta Response:** A system where only the changed or new elements are returned by the AI, preventing duplicates and ensuring efficient updates to diagrams.
+# - **Session-Based:** Refers to tracking user actions and diagram ownership using Django sessions, without requiring authentication.
+# - **Model Router:** The service that intelligently selects the optimal AI model for each task, based on context and command type.
+# - **Anonymous Collaboration:** Users can create and edit diagrams without registration, tracked only by session.
+# - **Incremental Update:** Modifying only specific parts of a diagram, rather than replacing the entire diagram.
+# - **WebSocket Channel Layer:** The backend system (Redis) that enables real-time communication between clients for collaborative editing.
+# - **Expert Reasoning Protocol:** A multi-phase approach used by the AI to generate high-quality UML diagrams, simulating expert-level decision making.
+# - **React Flow JSON:** The format used for diagram data, compatible with React Flow frontend libraries.
+# - **Rate Limiting:** Restricting the number of requests per IP to prevent abuse and ensure fair usage.
+# - **Multi-Model AI:** Architecture that uses several AI models (Llama 4 Maverick, Nova Pro, o4-mini) for different tasks.
+#
+# ---
+#
+# RESOURCES & USEFUL LINKS
+#
+# - [Django Documentation](https://docs.djangoproject.com/)
+# - [Django REST Framework](https://www.django-rest-framework.org/)
+# - [Channels (Django WebSockets)](https://channels.readthedocs.io/en/latest/)
+# - [Redis Documentation](https://redis.io/documentation)
+# - [AWS Bedrock Documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/)
+# - [Azure OpenAI Service](https://learn.microsoft.com/en-us/azure/ai-services/openai/)
+# - [React Flow](https://reactflow.dev/)
+# - [PEP 8 – Python Style Guide](https://peps.python.org/pep-0008/)
+# - [Black – Python Formatter](https://black.readthedocs.io/en/stable/)
+# - [GitHub Issues Tracker](https://github.com/Victoroide/ficct-springcode-backend/issues)
+# - [API Docs (Local)](http://localhost:8000/docs/)

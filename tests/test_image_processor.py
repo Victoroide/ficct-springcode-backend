@@ -19,13 +19,11 @@ from apps.ai_assistant.services.image_validator import InvalidImageError
 
 @pytest.fixture
 def valid_png_base64():
-    """Valid PNG image in base64."""
     return "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
 
 
 @pytest.fixture
 def sample_ocr_text():
-    """Sample OCR extracted text."""
     return """
 User
 ----
@@ -37,10 +35,8 @@ User
 
 
 class TestImageValidation:
-    """Test image format and size validation."""
     
     def test_valid_png_image(self, valid_png_base64):
-        """Test: Validate valid PNG format."""
         validator = ImageValidator()
         is_valid, error = validator.validate_image(valid_png_base64)
         
@@ -48,7 +44,6 @@ class TestImageValidation:
         assert error == ""
     
     def test_invalid_base64(self):
-        """Test: Reject invalid base64 encoding."""
         validator = ImageValidator()
         is_valid, error = validator.validate_image("not-valid-base64!!!")
         
@@ -56,7 +51,6 @@ class TestImageValidation:
         assert "base64" in error.lower() or "validation" in error.lower()
     
     def test_oversized_image(self):
-        """Test: Reject images larger than 20MB."""
         validator = ImageValidator()
         large_data = "A" * (21 * 1024 * 1024)
         
@@ -66,7 +60,6 @@ class TestImageValidation:
         assert "20MB" in error or "size" in error.lower()
     
     def test_undersized_image(self):
-        """Test: Reject images smaller than 100x100px."""
         validator = ImageValidator()
         tiny_image_base64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
         
@@ -77,12 +70,10 @@ class TestImageValidation:
 
 
 class TestOCRExtraction:
-    """Test OCR text extraction."""
     
     @patch('apps.ai_assistant.services.ocr_engine.pytesseract')
     @patch('apps.ai_assistant.services.ocr_engine.Image')
     def test_tesseract_extraction(self, mock_image, mock_tesseract):
-        """Test: Extract text using Tesseract."""
         mock_tesseract.image_to_string.return_value = "User\n- id : Long"
         
         engine = OCREngine()
@@ -95,7 +86,6 @@ class TestOCRExtraction:
         assert "id" in text
     
     def test_attribute_parsing(self, sample_ocr_text):
-        """Test: Parse UML attributes from OCR text."""
         parser = UMLParser()
         
         match = parser.attribute_pattern.search("- id : Long")
@@ -105,7 +95,6 @@ class TestOCRExtraction:
         assert match.group(3) == "Long"
     
     def test_method_parsing(self, sample_ocr_text):
-        """Test: Parse UML methods from OCR text."""
         parser = UMLParser()
         
         match = parser.method_pattern.search("+ save() : void")

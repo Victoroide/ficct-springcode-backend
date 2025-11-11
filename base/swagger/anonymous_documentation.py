@@ -1,6 +1,5 @@
 """
 Anonymous drf-spectacular Documentation Patterns.
-
 Simplified documentation decorators and schemas for the anonymous UML diagram service.
 """
 
@@ -10,12 +9,7 @@ from rest_framework import status
 
 
 class AnonymousDocumentation:
-    """
-    Documentation patterns for anonymous UML diagram service.
-    
-    Provides simplified documentation decorators without authentication requirements
-    and with a focus on public, zero-friction access.
-    """
+    """Documentation patterns for anonymous UML diagram service."""
     
     @staticmethod
     def get_standard_crud_schema(
@@ -26,17 +20,7 @@ class AnonymousDocumentation:
         create_serializer=None,
         update_serializer=None,
     ):
-        """
-        Generate standard CRUD documentation schema for anonymous ViewSets.
-        
-        Args:
-            resource_name: Human-readable resource name (e.g., "UML Diagram")
-            tag_name: OpenAPI tag for categorization
-            list_serializer: Serializer for list operations
-            detail_serializer: Serializer for detail operations
-            create_serializer: Serializer for create operations
-            update_serializer: Serializer for update operations
-        """
+        """Generate standard CRUD documentation schema for anonymous ViewSets."""
         
         resource_lower = resource_name.lower()
         
@@ -154,19 +138,7 @@ class AnonymousDocumentation:
         response_serializer=None,
         parameters=None
     ):
-        """
-        Generate documentation for custom ViewSet actions.
-        
-        Args:
-            action_name: Name of the custom action
-            resource_name: Human-readable resource name
-            tag_name: OpenAPI tag for categorization
-            description: Detailed description of the action
-            method: HTTP method (default: 'post')
-            request_serializer: Request body serializer
-            response_serializer: Response serializer
-            parameters: List of OpenApiParameter objects
-        """
+        """Generate documentation for custom ViewSet actions."""
         
         responses = {
             200: response_serializer if response_serializer else {"description": f"{action_name.title()} completed successfully"},
@@ -365,16 +337,7 @@ CRUD_DOCUMENTATION = {
 
 
 def get_custom_action_documentation(action_name, description, method='post', request_serializer=None, response_serializer=None):
-    """
-    Generate documentation for custom ViewSet actions.
-    
-    Args:
-        action_name: Name of the custom action
-        description: Description of the action
-        method: HTTP method (default: 'post')
-        request_serializer: Request serializer
-        response_serializer: Response serializer
-    """
+    """Generate documentation for custom ViewSet actions."""
     responses = {
         200: response_serializer if response_serializer else {"description": f"{action_name} completed successfully"},
         400: {"description": "Invalid request data"},

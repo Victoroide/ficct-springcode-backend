@@ -29,7 +29,6 @@ class Command(BaseCommand):
         )
     
     def handle(self, *args, **options):
-        """Handle the command execution."""
         timeout = options['timeout']
         interval = options['interval']
         
