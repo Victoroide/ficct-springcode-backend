@@ -11,21 +11,6 @@ from django.core.exceptions import ValidationError
 
 
 def validate_package_name(value: str) -> None:
-    """
-    Validates Flutter package name.
-
-    Formato: com.example.app o com.company.product.module
-
-    Args:
-        value: Package name a validar
-
-    Raises:
-        ValidationError: If format is invalid
-
-    Example:
-        >>> validate_package_name("com.example.app")  # OK
-        >>> validate_package_name("InvalidPackage")  # ValidationError
-    """
     pattern = r"^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$"
 
     if not re.match(pattern, value):
@@ -36,21 +21,6 @@ def validate_package_name(value: str) -> None:
 
 
 def validate_project_name(value: str) -> None:
-    """
-    Validates Flutter project name.
-
-    Formato: snake_case (ej: erp_inventory, mobile_app)
-
-    Args:
-        value: Project name a validar
-
-    Raises:
-        ValidationError: If format is invalid
-
-    Example:
-        >>> validate_project_name("erp_inventory")  # OK
-        >>> validate_project_name("ERP-Inventory")  # ValidationError
-    """
     pattern = r"^[a-z][a-z0-9_]*$"
 
     if not re.match(pattern, value):
@@ -61,15 +31,6 @@ def validate_project_name(value: str) -> None:
 
 
 def validate_theme(value: str) -> None:
-    """
-    Validates Flutter theme.
-
-    Args:
-        value: Theme a validar
-
-    Raises:
-        ValidationError: If theme is not allowed
-    """
     allowed_themes = ["material3", "cupertino"]
 
     if value not in allowed_themes:
@@ -80,15 +41,6 @@ def validate_theme(value: str) -> None:
 
 
 def validate_navigation_type(value: str) -> None:
-    """
-    Validates Flutter navigation type.
-
-    Args:
-        value: Navigation type a validar
-
-    Raises:
-        ValidationError: If navigation type is not allowed
-    """
     allowed_types = ["drawer", "bottom_nav", "tabs"]
 
     if value not in allowed_types:
@@ -99,15 +51,6 @@ def validate_navigation_type(value: str) -> None:
 
 
 def validate_state_management(value: str) -> None:
-    """
-    Validates state management library.
-
-    Args:
-        value: State management a validar
-
-    Raises:
-        ValidationError: If not allowed
-    """
     allowed_libraries = ["provider", "riverpod", "bloc", "getx"]
 
     if value not in allowed_libraries:
@@ -118,19 +61,6 @@ def validate_state_management(value: str) -> None:
 
 
 def validate_primary_color(value: str) -> None:
-    """
-    Validates hexadecimal color.
-
-    Args:
-        value: Color en formato hex (#RRGGBB)
-
-    Raises:
-        ValidationError: If format is invalid
-
-    Example:
-        >>> validate_primary_color("#2196F3")  # OK
-        >>> validate_primary_color("blue")  # ValidationError
-    """
     pattern = r"^#[0-9A-Fa-f]{6}$"
 
     if not re.match(pattern, value):
@@ -141,23 +71,6 @@ def validate_primary_color(value: str) -> None:
 
 
 def validate_flutter_config(config: Dict[str, Any]) -> None:
-    """
-    Validates complete Flutter project configuration.
-
-    Args:
-        config: Diccionario de configuración
-
-    Raises:
-        ValidationError: Si algún campo es inválido
-
-    Example:
-        >>> config = {
-        ...     "theme": "material3",
-        ...     "primary_color": "#2196F3",
-        ...     "navigation_type": "drawer"
-        ... }
-        >>> validate_flutter_config(config)  # OK
-    """
     errors = []
 
     if "theme" in config:

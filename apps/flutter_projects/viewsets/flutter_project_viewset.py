@@ -25,8 +25,6 @@ logger = logging.getLogger(__name__)
 
 class FlutterProjectViewSet(viewsets.ModelViewSet):
     """
-    ViewSet para gestión de Flutter Projects.
-
     Endpoints:
     - GET /api/flutter-projects/ - Lista proyectos por sesión
     - POST /api/flutter-projects/ - Crea nuevo proyecto
@@ -34,12 +32,6 @@ class FlutterProjectViewSet(viewsets.ModelViewSet):
     - PATCH /api/flutter-projects/{id}/ - Actualiza config/metadata
     - DELETE /api/flutter-projects/{id}/ - Elimina proyecto
     - GET /api/flutter-projects/{id}/export-config/ - Exporta configuración
-
-    Rate Limiting:
-    - 50 requests/hora por sesión
-
-    Permissions:
-    - AllowAny (sistema anónimo basado en session_id)
     """
 
     queryset = FlutterProject.objects.all()
@@ -57,13 +49,7 @@ class FlutterProjectViewSet(viewsets.ModelViewSet):
         return FlutterProjectSerializer
 
     def get_queryset(self):
-        """
-        Filtra proyectos por session_id.
-
-        Query params:
-        - session_id: Filtra por sesión (requerido para list)
-        - diagram_id: Filtra por diagrama UML
-        """
+        """Filtra proyectos por session_id."""
         queryset = FlutterProject.objects.all()
 
         session_id = self.request.query_params.get("session_id")
@@ -81,30 +67,6 @@ class FlutterProjectViewSet(viewsets.ModelViewSet):
 
     @ratelimit(key="ip", rate="50/h", method="POST")
     def create(self, request, *args, **kwargs):
-        """
-        Crea nuevo Flutter Project.
-
-        Request body:
-        {
-            "diagram_id": "uuid",
-            "session_id": "session_abc123",
-            "project_name": "erp_inventory",
-            "package_name": "com.example.erp_inventory",
-            "config": {
-                "theme": "material3",
-                "primary_color": "#2196F3",
-                "navigation_type": "drawer",
-                "state_management": "provider",
-                "enable_dark_mode": true
-            },
-            "metadata": {
-                "description": "ERP Inventory System",
-                "version": "1.0.0",
-                "author": "Anonymous",
-                "classes_count": 8
-            }
-        }
-        """
         serializer = self.get_serializer(data=request.data)
 
         try:
@@ -130,16 +92,6 @@ class FlutterProjectViewSet(viewsets.ModelViewSet):
 
     @ratelimit(key="ip", rate="50/h", method="PATCH")
     def partial_update(self, request, *args, **kwargs):
-        """
-        Actualiza config o metadata de proyecto.
-
-        Request body:
-        {
-            "config": {
-                "primary_color": "#FF5722"
-            }
-        }
-        """
         instance = self.get_object()
 
         session_id = request.query_params.get("session_id")
@@ -171,7 +123,6 @@ class FlutterProjectViewSet(viewsets.ModelViewSet):
             )
 
     def destroy(self, request, *args, **kwargs):
-        """Elimina proyecto (solo si session_id coincide)."""
         instance = self.get_object()
 
         session_id = request.query_params.get("session_id")
@@ -192,17 +143,6 @@ class FlutterProjectViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["get"])
     def export_config(self, request, id=None):
-        """
-        Exporta configuración completa del proyecto.
-
-        Returns:
-        {
-            "project_name": "erp_inventory",
-            "package_name": "com.example.erp_inventory",
-            "config": {...},
-            "metadata": {...}
-        }
-        """
         instance = self.get_object()
 
         export_data = {
@@ -220,19 +160,6 @@ class FlutterProjectViewSet(viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def statistics(self, request):
-        """
-        Estadísticas de proyectos Flutter por sesión.
-
-        Query params:
-        - session_id: ID de sesión (requerido)
-
-        Returns:
-        {
-            "total_projects": 5,
-            "themes_used": {"material3": 3, "cupertino": 2},
-            "state_management_used": {"provider": 4, "bloc": 1}
-        }
-        """
         session_id = request.query_params.get("session_id")
 
         if not session_id:

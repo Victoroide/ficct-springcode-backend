@@ -25,10 +25,6 @@ from ..serializers.anonymous_diagram_serializer import (
 
 @extend_schema_view(**UML_DIAGRAMS_SCHEMA)
 class AnonymousDiagramViewSet(viewsets.ModelViewSet):
-    """
-    Anonymous UML Diagram management without authentication.
-    Anyone can create, view, and edit diagrams using session tracking.
-    """
     
     queryset = UMLDiagram.objects.all()
     permission_classes = [AllowAny]
@@ -36,7 +32,6 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
     throttle_scope = 'anon'
     
     def get_serializer_class(self):
-        """Return appropriate serializer based on action."""
         if self.action == 'list':
             return AnonymousDiagramListSerializer
         elif self.action == 'create':
@@ -47,7 +42,6 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
             return AnonymousDiagramDetailSerializer
     
     def get_queryset(self):
-        """Filter queryset based on query parameters."""
         queryset = UMLDiagram.objects.all()
 
         diagram_type = self.request.query_params.get('type')
@@ -67,7 +61,6 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
         return queryset.order_by('-last_modified')
     
     def perform_create(self, serializer):
-        """Create diagram with session tracking and log ID."""
         import logging
         logger = logging.getLogger('django')
 
@@ -133,11 +126,9 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     def perform_update(self, serializer):
-        """Update diagram with session tracking."""
         serializer.save()
     
     def destroy(self, request, *args, **kwargs):
-        """Delete diagram (only if created by current session)."""
         diagram = self.get_object()
 
         current_session = request.session.get('diagram_session_id')
@@ -153,7 +144,6 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
     @AnonymousDocumentation.get_statistics_schema(resource_name='UML Diagram', tag_name='UML Diagrams')
     @action(detail=False, methods=['get'])
     def stats(self, request):
-        """Get diagram statistics."""
         serializer = DiagramStatsSerializer(data={})
         serializer.is_valid()
         return Response(serializer.data)
@@ -168,7 +158,6 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=['get'])
     def export_plantuml(self, request, pk=None):
-        """Export diagram to PlantUML format."""
         diagram = self.get_object()
         serializer = PlantUMLExportSerializer(diagram)
         return Response(serializer.data)
@@ -183,7 +172,6 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=['post'])
     def clone(self, request, pk=None):
-        """Clone diagram for current session."""
         import uuid
         diagram = self.get_object()
 
@@ -206,7 +194,6 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=['post'])
     def join_session(self, request, pk=None):
-        """Join collaboration session."""
         diagram = self.get_object()
 
         session_id = request.session.get('diagram_session_id')
@@ -236,7 +223,6 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
     )
     @action(detail=True, methods=['post'])
     def leave_session(self, request, pk=None):
-        """Leave collaboration session."""
         diagram = self.get_object()
         
         session_id = request.session.get('diagram_session_id')
@@ -252,7 +238,6 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=['get'])
     def recent(self, request):
-        """Get recent diagrams."""
         limit = int(request.query_params.get('limit', 10))
         diagrams = UMLDiagram.get_recent_diagrams(limit)
         serializer = AnonymousDiagramListSerializer(diagrams, many=True)
@@ -265,7 +250,6 @@ class AnonymousDiagramViewSet(viewsets.ModelViewSet):
     )
     @action(detail=False, methods=['get']) 
     def my_diagrams(self, request):
-        """Get diagrams for current session."""
         session_id = request.session.get('diagram_session_id')
         if not session_id:
             return Response([])

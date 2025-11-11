@@ -116,18 +116,6 @@ TYPE_NORMALIZATION: Dict[str, str] = {
 def normalize_type(type_str: str) -> str:
     """
     Normalize type string to Java convention.
-
-    Args:
-        type_str: Type string to normalize
-
-    Returns:
-        Normalized type string
-
-    Examples:
-        >>> normalize_type("int")
-        'Integer'
-        >>> normalize_type("string")
-        'String'
     """
     normalized = TYPE_NORMALIZATION.get(type_str.lower(), type_str)
 
@@ -140,16 +128,6 @@ def normalize_type(type_str: str) -> str:
 def normalize_relationship_type(rel_type: str) -> str:
     """
     Normalize relationship type string.
-
-    Args:
-        rel_type: Relationship type to normalize
-
-    Returns:
-        Normalized relationship type
-
-    Examples:
-        >>> normalize_relationship_type("association")
-        'ASSOCIATION'
     """
     return RELATIONSHIP_TYPES.get(rel_type.lower(), "ASSOCIATION")
 
@@ -157,18 +135,6 @@ def normalize_relationship_type(rel_type: str) -> str:
 def normalize_visibility(visibility: str) -> str:
     """
     Normalize visibility string (English and Spanish).
-
-    Args:
-        visibility: Visibility to normalize
-
-    Returns:
-        Normalized visibility
-
-    Examples:
-        >>> normalize_visibility("public")
-        'public'
-        >>> normalize_visibility("privado")
-        'private'
     """
     return VISIBILITY_MAP.get(visibility.lower(), "private")
 
@@ -176,18 +142,6 @@ def normalize_visibility(visibility: str) -> str:
 def detect_language(command: str) -> str:
     """
     Detect command language based on Spanish keywords.
-
-    Args:
-        command: Command text
-
-    Returns:
-        "es" for Spanish, "en" for English
-
-    Examples:
-        >>> detect_language("agregar atributo email")
-        'es'
-        >>> detect_language("add attribute email")
-        'en'
     """
     spanish_keywords = [
         "agregar",
@@ -218,17 +172,6 @@ def detect_language(command: str) -> str:
 def get_command_patterns(language: str) -> Dict[str, Pattern]:
     """
     Get command patterns for specified language.
-
-    Args:
-        language: "en" for English, "es" for Spanish
-
-    Returns:
-        Dictionary of command patterns
-
-    Examples:
-        >>> patterns = get_command_patterns("en")
-        >>> "add_attribute" in patterns
-        True
     """
     if language == "es":
         return COMMAND_PATTERNS_ES

@@ -27,14 +27,6 @@ class UMLCommandProcessorService:
     def process_command(self, command: str, diagram_id: Optional[str] = None, current_diagram_data: Optional[Dict] = None) -> Dict:
         """
         Process natural language command and generate UML elements using direct OpenAI call.
-        
-        Args:
-            command: Natural language command
-            diagram_id: Optional diagram ID for context (not used in simplified version)
-            current_diagram_data: Current diagram state with nodes and edges
-            
-        Returns:
-            Dict with processed elements and metadata
         """
         try:
             if not self.openai_available:
@@ -94,15 +86,6 @@ class UMLCommandProcessorService:
     def _extract_and_parse_json(self, response_text: str) -> Optional[Dict]:
         """
         Robustly extract and parse JSON from o4-mini response text.
-        
-        o4-mini often wraps JSON in explanatory text or markdown code blocks.
-        This method tries multiple extraction strategies to find and parse the JSON.
-        
-        Args:
-            response_text: Raw text response from o4-mini
-            
-        Returns:
-            Parsed dict if successful, None if all strategies fail
         """
         if not response_text or not response_text.strip():
             self.logger.error("Empty response text received")

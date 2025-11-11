@@ -65,9 +65,6 @@ class AIAssistantRateThrottle(AnonRateThrottle):
 def ask_ai_assistant(request):
     """
     Main endpoint for asking AI assistant questions.
-    
-    Provides contextual help about UML diagrams, system functionality,
-    and best practices in Spanish.
     """
     try:
 
@@ -138,9 +135,6 @@ def ask_ai_assistant(request):
 def ask_about_diagram(request, diagram_id):
     """
     Get AI assistant help about a specific diagram.
-    
-    Provides context-aware assistance based on the current state
-    of the specified diagram.
     """
     try:
 
@@ -210,9 +204,6 @@ def ask_about_diagram(request, diagram_id):
 def get_diagram_analysis(request, diagram_id):
     """
     Get AI-powered analysis of a specific diagram.
-    
-    Provides complexity analysis, completeness assessment,
-    and improvement recommendations.
     """
     try:
         ai_service = AIAssistantService()
@@ -249,8 +240,6 @@ def get_diagram_analysis(request, diagram_id):
 def get_system_statistics(request):
     """
     Get system statistics for AI assistant context.
-    
-    Provides current system status and usage statistics.
     """
     try:
         ai_service = AIAssistantService()
@@ -338,12 +327,6 @@ def ai_assistant_health(request):
 def process_uml_command(request):
     """
     Process natural language commands for UML diagram generation.
-    
-    Accepts commands in multiple languages and generates React Flow compatible
-    JSON structures for UML elements like classes, attributes, methods, and relationships.
-    
-    Supports model selection via 'model' parameter (nova-pro, o4-mini).
-    Defaults to nova-pro if not specified.
     """
     try:
 
@@ -414,9 +397,6 @@ def process_uml_command(request):
 def process_uml_command_for_diagram(request, diagram_id):
     """
     Process natural language command with diagram context.
-    
-    Uses the specified diagram's current state to provide context-aware
-    UML element generation and validation.
     """
     try:
 
@@ -472,9 +452,6 @@ def process_uml_command_for_diagram(request, diagram_id):
 def get_supported_commands(request):
     """
     Get documentation of supported command patterns.
-    
-    Returns examples of supported natural language commands for
-    creating UML elements in multiple languages.
     """
     try:
         processor_service = UMLCommandProcessorService()
@@ -516,9 +493,6 @@ def get_supported_commands(request):
 # @throttle_classes([AIAssistantRateThrottle])  # Disabled for debugging
 def process_diagram_image(request):
     """Process UML diagram image using Amazon Nova Pro Vision API.
-    
-    Extracts classes, attributes, methods and relationships from image.
-    Cost: $0.001-0.003 per image.
     """
     import time
     start_time = time.time()
@@ -590,8 +564,6 @@ def process_diagram_image(request):
 # @throttle_classes([AIAssistantRateThrottle])  # Disabled for debugging
 def update_diagram_from_image(request, diagram_id):
     """Extract UML elements from image using Amazon Nova Pro.
-    
-    Merging is done client-side.
     """
     import time
     start_time = time.time()
@@ -665,8 +637,6 @@ def update_diagram_from_image(request, diagram_id):
 # @throttle_classes([AIAssistantRateThrottle])  # Disabled for debugging
 def process_incremental_command(request):
     """Process incremental UML modification command (English or Spanish).
-    
-    Returns DELTA with only the changes to apply.
     """
     import time
     start_time = time.time()
@@ -733,13 +703,6 @@ def process_incremental_command(request):
 def get_available_models(request):
     """
     Get list of available AI models for command processing.
-    
-    Returns information about each model including:
-    - Model identifier and name
-    - Provider (AWS, Azure)
-    - Average response time
-    - Cost estimate per request
-    - Default model indicator
     """
     try:
         from django.conf import settings

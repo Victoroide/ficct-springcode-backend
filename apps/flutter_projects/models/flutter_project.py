@@ -1,8 +1,5 @@
 """
 Flutter Project model for storing Flutter project metadata.
-
-Flutter code is generated 100% in frontend (TypeScript).
-Backend only stores configuration metadata.
 """
 
 import uuid
@@ -83,49 +80,19 @@ class FlutterProject(models.Model):
         return f"{self.project_name} ({self.package_name})"
 
     def get_config_value(self, key: str, default=None):
-        """Get configuration value.
-
-        Args:
-            key: Configuration key
-            default: Default value if not exists
-
-        Returns:
-            Configuration value
-        """
+        """Get configuration value."""
         return self.config.get(key, default)
 
     def update_config(self, updates: dict) -> None:
-        """Update project configuration.
-
-        Args:
-            updates: Dictionary with updates
-
-        Example:
-            >>> project.update_config({"theme": "material3"})
-        """
+        """Update project configuration."""
         self.config.update(updates)
         self.save(update_fields=["config", "last_generated"])
 
     def get_metadata_value(self, key: str, default=None):
-        """Get metadata value.
-
-        Args:
-            key: Metadata key
-            default: Default value if not exists
-
-        Returns:
-            Metadata value
-        """
+        """Get metadata value. """
         return self.metadata.get(key, default)
 
     def update_metadata(self, updates: dict) -> None:
-        """Update project metadata.
-
-        Args:
-            updates: Dictionary with updates
-
-        Example:
-            >>> project.update_metadata({"version": "1.0.1"})
-        """
+        """Update project metadata."""
         self.metadata.update(updates)
         self.save(update_fields=["metadata", "last_generated"])

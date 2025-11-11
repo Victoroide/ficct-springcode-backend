@@ -16,12 +16,6 @@ from apps.flutter_projects.validators.flutter_validators import (
 
 
 class FlutterProjectSerializer(serializers.ModelSerializer):
-    """
-    Main serializer for Flutter Project.
-
-    Validates all fields including package_name, project_name and config.
-    """
-
     class Meta:
         model = FlutterProject
         fields = [
@@ -48,16 +42,6 @@ class FlutterProjectSerializer(serializers.ModelSerializer):
         return value
 
     def validate_config(self, value: dict) -> dict:
-        """
-        Validates Flutter project configuration.
-
-        Checks:
-        - theme: material3 o cupertino
-        - primary_color: formato #RRGGBB
-        - navigation_type: drawer, bottom_nav, tabs
-        - state_management: provider, riverpod, bloc, getx
-        - enable_dark_mode: boolean
-        """
         validate_flutter_config(value)
 
         if "enable_dark_mode" in value and not isinstance(
@@ -71,13 +55,6 @@ class FlutterProjectSerializer(serializers.ModelSerializer):
 
 
 class FlutterProjectCreateSerializer(serializers.ModelSerializer):
-    """
-    Serializer for Flutter Project creation.
-
-    Requiere campos mínimos: diagram_id, session_id, project_name, package_name.
-    Config y metadata son opcionales con defaults.
-    """
-
     config = serializers.JSONField(required=False, default=dict)
     metadata = serializers.JSONField(required=False, default=dict)
 
@@ -109,16 +86,7 @@ class FlutterProjectCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        """
-        Object-level validation.
-
-        Aplica defaults si no se proporcionan:
-        - theme: material3
-        - primary_color: #2196F3
-        - navigation_type: bottom_nav
-        - state_management: provider
-        - enable_dark_mode: true
-        """
+        """Object-level validation."""
         config = attrs.get("config", {})
 
         defaults = {
@@ -149,12 +117,7 @@ class FlutterProjectCreateSerializer(serializers.ModelSerializer):
 
 
 class FlutterProjectUpdateSerializer(serializers.ModelSerializer):
-    """
-    Serializer for Flutter Project update.
-
-    Permite actualizar config y metadata, pero no campos inmutables.
-    """
-
+    """Permite actualizar config y metadata, pero no campos inmutables."""
     class Meta:
         model = FlutterProject
         fields = ["config", "metadata"]
@@ -166,12 +129,7 @@ class FlutterProjectUpdateSerializer(serializers.ModelSerializer):
 
 
 class FlutterProjectListSerializer(serializers.ModelSerializer):
-    """
-    Serializer for Flutter Projects listing.
-
-    Versión ligera sin config/metadata completos.
-    """
-
+    """Versión ligera sin config/metadata completos."""
     theme = serializers.SerializerMethodField()
     classes_count = serializers.SerializerMethodField()
 
@@ -188,9 +146,7 @@ class FlutterProjectListSerializer(serializers.ModelSerializer):
         ]
 
     def get_theme(self, obj: FlutterProject) -> str:
-        """Gets theme from config."""
         return obj.get_config_value("theme", "material3")
 
     def get_classes_count(self, obj: FlutterProject) -> int:
-        """Gets number of classes from metadata."""
         return obj.get_metadata_value("classes_count", 0)

@@ -1,21 +1,10 @@
-"""
-Public serializer for UML Diagrams.
-
-Provides safe serialization of diagram data for public access,
-excluding sensitive information like owner details.
-"""
+"""Public serializer for UML Diagrams."""
 
 from rest_framework import serializers
 from ..models import UMLDiagram
 
 
 class UMLDiagramPublicSerializer(serializers.ModelSerializer):
-    """
-    Public serializer for UML Diagrams.
-    
-    Excludes sensitive information and provides only necessary
-    fields for public diagram access and editing.
-    """
     
     diagram_type_display = serializers.CharField(
         source='get_diagram_type_display', 
@@ -172,11 +161,6 @@ class UMLDiagramPublicSerializer(serializers.ModelSerializer):
 
 
 class UMLDiagramPublicListSerializer(serializers.ModelSerializer):
-    """
-    Simplified serializer for public diagram lists.
-    
-    Used for listing public diagrams with minimal information.
-    """
     
     diagram_type_display = serializers.CharField(
         source='get_diagram_type_display', 

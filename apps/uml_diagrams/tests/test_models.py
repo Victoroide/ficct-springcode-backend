@@ -1,6 +1,4 @@
-"""
-Tests for UML Diagrams app models - UMLDiagram, UMLElement, UMLRelationship.
-"""
+"""Tests for UML Diagrams app models - UMLDiagram, UMLElement, UMLRelationship."""
 
 from django.test import TestCase
 from django.contrib.auth import get_user_model
@@ -16,7 +14,6 @@ User = get_user_model()
 
 
 class UMLDiagramModelTestCase(TestCase):
-    """Test cases for UMLDiagram model."""
     
     def setUp(self):
         """Set up test fixtures."""
@@ -39,7 +36,6 @@ class UMLDiagramModelTestCase(TestCase):
         )
     
     def test_diagram_creation(self):
-        """Test basic diagram creation."""
         diagram = UMLDiagram.objects.create(
             name='User Management Diagram',
             diagram_type='CLASS',
@@ -54,7 +50,6 @@ class UMLDiagramModelTestCase(TestCase):
         self.assertEqual(diagram.status, 'DRAFT')
     
     def test_diagram_str_representation(self):
-        """Test diagram string representation."""
         diagram = UMLDiagram.objects.create(
             name='Test Diagram',
             diagram_type='SEQUENCE',
@@ -66,7 +61,6 @@ class UMLDiagramModelTestCase(TestCase):
         self.assertEqual(str(diagram), expected_str)
     
     def test_diagram_metadata_default(self):
-        """Test default metadata structure."""
         diagram = UMLDiagram.objects.create(
             name='Test Diagram',
             diagram_type='CLASS',
@@ -80,7 +74,6 @@ class UMLDiagramModelTestCase(TestCase):
         self.assertIn('theme', diagram.metadata)
     
     def test_diagram_element_count(self):
-        """Test element counting methods."""
         diagram = UMLDiagram.objects.create(
             name='Test Diagram',
             diagram_type='CLASS',
@@ -110,7 +103,6 @@ class UMLDiagramModelTestCase(TestCase):
         self.assertEqual(diagram.get_interface_count(), 0)
     
     def test_diagram_validation(self):
-        """Test diagram validation methods."""
         diagram = UMLDiagram.objects.create(
             name='Test Diagram',
             diagram_type='CLASS',
@@ -136,7 +128,6 @@ class UMLDiagramModelTestCase(TestCase):
             self.fail("Diagram validation raised exception for valid diagram")
     
     def test_diagram_export_data(self):
-        """Test diagram export functionality."""
         diagram = UMLDiagram.objects.create(
             name='Test Diagram',
             diagram_type='CLASS',
@@ -154,7 +145,6 @@ class UMLDiagramModelTestCase(TestCase):
         self.assertIn('created_at', export_data)
     
     def test_diagram_activity_update(self):
-        """Test diagram activity tracking."""
         diagram = UMLDiagram.objects.create(
             name='Test Diagram',
             diagram_type='CLASS',
@@ -169,7 +159,6 @@ class UMLDiagramModelTestCase(TestCase):
         self.assertGreater(diagram.last_modified_at, original_activity)
     
     def test_diagram_collaboration_settings(self):
-        """Test collaboration settings."""
         diagram = UMLDiagram.objects.create(
             name='Test Diagram',
             diagram_type='CLASS',
@@ -188,10 +177,8 @@ class UMLDiagramModelTestCase(TestCase):
 
 
 class UMLElementModelTestCase(TestCase):
-    """Test cases for UMLElement model."""
     
     def setUp(self):
-        """Set up test fixtures."""
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
@@ -218,7 +205,6 @@ class UMLElementModelTestCase(TestCase):
         )
     
     def test_element_creation(self):
-        """Test basic element creation."""
         element = UMLElement.objects.create(
             diagram=self.diagram,
             element_type='CLASS',
@@ -238,7 +224,6 @@ class UMLElementModelTestCase(TestCase):
         self.assertEqual(element.height, 300)
     
     def test_element_str_representation(self):
-        """Test element string representation."""
         element = UMLElement.objects.create(
             diagram=self.diagram,
             element_type='INTERFACE',
@@ -252,7 +237,6 @@ class UMLElementModelTestCase(TestCase):
         self.assertEqual(str(element), expected_str)
     
     def test_element_properties_default(self):
-        """Test default element properties."""
         element = UMLElement.objects.create(
             diagram=self.diagram,
             element_type='CLASS',
@@ -268,7 +252,6 @@ class UMLElementModelTestCase(TestCase):
         self.assertIn('visibility', element.properties)
     
     def test_class_element_properties(self):
-        """Test class element specific properties."""
         element = UMLElement.objects.create(
             diagram=self.diagram,
             element_type='CLASS',
@@ -295,7 +278,6 @@ class UMLElementModelTestCase(TestCase):
         self.assertFalse(element.properties['is_abstract'])
     
     def test_element_bounds_validation(self):
-        """Test element bounds validation."""
         element = UMLElement.objects.create(
             diagram=self.diagram,
             element_type='CLASS',
@@ -315,7 +297,6 @@ class UMLElementModelTestCase(TestCase):
         self.assertEqual(bounds['bottom'], 250)  # 100 + 150
     
     def test_element_collision_detection(self):
-        """Test element collision detection."""
         element1 = UMLElement.objects.create(
             diagram=self.diagram,
             element_type='CLASS',
@@ -341,7 +322,6 @@ class UMLElementModelTestCase(TestCase):
         self.assertTrue(element1.overlaps_with(element2))
     
     def test_element_move(self):
-        """Test element movement."""
         element = UMLElement.objects.create(
             diagram=self.diagram,
             element_type='CLASS',
@@ -357,7 +337,6 @@ class UMLElementModelTestCase(TestCase):
         self.assertEqual(element.position_y, 250)
     
     def test_element_resize(self):
-        """Test element resizing."""
         element = UMLElement.objects.create(
             diagram=self.diagram,
             element_type='CLASS',
@@ -376,7 +355,6 @@ class UMLElementModelTestCase(TestCase):
 
 
 class UMLRelationshipModelTestCase(TestCase):
-    """Test cases for UMLRelationship model."""
     
     def setUp(self):
         """Set up test fixtures."""
@@ -424,7 +402,6 @@ class UMLRelationshipModelTestCase(TestCase):
         )
     
     def test_relationship_creation(self):
-        """Test basic relationship creation."""
         relationship = UMLRelationship.objects.create(
             diagram=self.diagram,
             source_element=self.source_element,
@@ -439,7 +416,6 @@ class UMLRelationshipModelTestCase(TestCase):
         self.assertEqual(relationship.diagram, self.diagram)
     
     def test_relationship_str_representation(self):
-        """Test relationship string representation."""
         relationship = UMLRelationship.objects.create(
             diagram=self.diagram,
             source_element=self.source_element,
@@ -452,7 +428,6 @@ class UMLRelationshipModelTestCase(TestCase):
         self.assertEqual(str(relationship), expected_str)
     
     def test_relationship_properties_default(self):
-        """Test default relationship properties."""
         relationship = UMLRelationship.objects.create(
             diagram=self.diagram,
             source_element=self.source_element,
@@ -468,7 +443,6 @@ class UMLRelationshipModelTestCase(TestCase):
         self.assertIn('target_role', relationship.properties)
     
     def test_association_relationship_properties(self):
-        """Test association relationship specific properties."""
         relationship = UMLRelationship.objects.create(
             diagram=self.diagram,
             source_element=self.source_element,
@@ -490,7 +464,6 @@ class UMLRelationshipModelTestCase(TestCase):
         self.assertEqual(relationship.properties['target_role'], 'orders')
     
     def test_self_relationship_prevention(self):
-        """Test prevention of self-relationships."""
         with self.assertRaises(ValidationError):
             relationship = UMLRelationship(
                 diagram=self.diagram,
@@ -502,7 +475,6 @@ class UMLRelationshipModelTestCase(TestCase):
             relationship.full_clean()
     
     def test_relationship_validation(self):
-        """Test relationship validation based on type."""
 
         relationship = UMLRelationship.objects.create(
             diagram=self.diagram,
@@ -518,7 +490,6 @@ class UMLRelationshipModelTestCase(TestCase):
             self.fail("Relationship validation raised exception for valid inheritance")
     
     def test_relationship_path_calculation(self):
-        """Test relationship path calculation for rendering."""
         relationship = UMLRelationship.objects.create(
             diagram=self.diagram,
             source_element=self.source_element,
@@ -534,7 +505,6 @@ class UMLRelationshipModelTestCase(TestCase):
         self.assertIn('control_points', path)
     
     def test_relationship_label_positioning(self):
-        """Test relationship label positioning."""
         relationship = UMLRelationship.objects.create(
             diagram=self.diagram,
             source_element=self.source_element,
@@ -555,7 +525,6 @@ class UMLDiagramComplexInteractionsTestCase(TestCase):
     """Test complex interactions between UML diagram components."""
     
     def setUp(self):
-        """Set up test fixtures."""
         self.user = User.objects.create_user(
             username='testuser',
             email='test@example.com',
@@ -582,7 +551,6 @@ class UMLDiagramComplexInteractionsTestCase(TestCase):
         )
     
     def test_diagram_element_cascade_delete(self):
-        """Test cascade delete from diagram to elements and relationships."""
 
         user_element = UMLElement.objects.create(
             diagram=self.diagram,
@@ -622,7 +590,6 @@ class UMLDiagramComplexInteractionsTestCase(TestCase):
             UMLRelationship.objects.get(id=relationship_id)
     
     def test_element_relationship_cleanup(self):
-        """Test relationship cleanup when element is deleted."""
         user_element = UMLElement.objects.create(
             diagram=self.diagram,
             element_type='CLASS',
@@ -657,7 +624,6 @@ class UMLDiagramComplexInteractionsTestCase(TestCase):
             UMLRelationship.objects.get(id=relationship_id)
     
     def test_diagram_statistics_aggregation(self):
-        """Test diagram statistics calculation."""
 
         UMLElement.objects.create(
             diagram=self.diagram,
@@ -694,7 +660,6 @@ class UMLDiagramComplexInteractionsTestCase(TestCase):
         self.assertEqual(stats['element_types']['ABSTRACT_CLASS'], 1)
     
     def test_diagram_validation_comprehensive(self):
-        """Test comprehensive diagram validation."""
 
         user_class = UMLElement.objects.create(
             diagram=self.diagram,

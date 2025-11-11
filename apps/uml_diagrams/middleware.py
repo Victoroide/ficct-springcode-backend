@@ -14,15 +14,7 @@ from apps.audit.services.audit_service import AuditService
 
 
 class PublicAccessMiddleware(MiddlewareMixin):
-    """
-    Middleware for handling public diagram access.
-    
-    Features:
-    - Rate limiting per IP for public endpoints
-    - Security headers for public access
-    - Logging of anonymous access attempts
-    - Anti-spam protection
-    """
+    """Middleware for handling public diagram access."""
 
     _access_log = defaultdict(list)
     _blocked_ips = set()
@@ -52,7 +44,6 @@ class PublicAccessMiddleware(MiddlewareMixin):
         return None
     
     def process_response(self, request, response):
-        """Process response for public access."""
 
         if request.path.startswith('/api/public/'):
             response['X-Content-Type-Options'] = 'nosniff'
@@ -68,7 +59,6 @@ class PublicAccessMiddleware(MiddlewareMixin):
         return response
     
     def get_client_ip(self, request):
-        """Get client IP address."""
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
         if x_forwarded_for:
             ip = x_forwarded_for.split(',')[0].strip()
@@ -77,7 +67,6 @@ class PublicAccessMiddleware(MiddlewareMixin):
         return ip
     
     def check_rate_limit(self, ip, request):
-        """Check rate limiting for IP."""
         now = time.time()
         window = 60  # 1 minute window
 
@@ -101,7 +90,6 @@ class PublicAccessMiddleware(MiddlewareMixin):
         return True
     
     def log_public_access(self, request, ip):
-        """Log public access attempt."""
         try:
             AuditService.log_anonymous_action(
                 action_type='PUBLIC_API_ACCESS',
@@ -122,11 +110,6 @@ class PublicAccessMiddleware(MiddlewareMixin):
 
 
 class AntiSpamMiddleware(MiddlewareMixin):
-    """
-    Anti-spam middleware for public endpoints.
-    
-    Detects and blocks potential spam/bot requests.
-    """
     
     SUSPICIOUS_USER_AGENTS = [
         'bot', 'crawler', 'spider', 'scraper', 'automated',

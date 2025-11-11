@@ -1,9 +1,4 @@
-"""
-Comprehensive Unit Tests for UML Diagrams Endpoints
-
-Tests for ALL UML diagram endpoints including UMLDiagramViewSet,
-UMLElementViewSet, and UMLRelationshipViewSet with full CRUD operations.
-"""
+"""Comprehensive Unit Tests for UML Diagrams Endpoints"""
 
 import json
 from unittest.mock import patch, Mock
@@ -20,7 +15,6 @@ User = get_user_model()
 
 
 class UMLDiagramViewSetTestCase(BaseTestCase):
-    """Test cases for UMLDiagramViewSet endpoints."""
     
     def setUp(self):
         """Set up test client and authenticated user."""

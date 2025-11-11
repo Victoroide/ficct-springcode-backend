@@ -1,9 +1,4 @@
-"""
-Comprehensive tests for UML Diagrams ViewSets.
-
-Tests all UML diagram endpoints including CRUD operations, validation,
-export functionality, and diagram-specific actions with full coverage.
-"""
+"""Comprehensive tests for UML Diagrams ViewSets."""
 
 from django.test import TestCase
 from django.urls import reverse
@@ -29,11 +24,9 @@ User = get_user_model()
 
 
 class UMLDiagramViewSetTestCase(EnterpriseTestCase):
-    """Comprehensive tests for UMLDiagramViewSet."""
     
     @classmethod
     def setUpTestData(cls):
-        """Set up test data for UML diagram tests."""
         super().setUpTestData()
 
         cls.workspace = WorkspaceFactory(owner=cls.test_user)
@@ -66,7 +59,6 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         self.diagram_detail_url = reverse('uml_diagrams:umldiagram-detail', args=[self.class_diagram.id])
     
     def test_list_uml_diagrams(self):
-        """Test listing UML diagrams."""
         response = self.client.get(self.diagrams_url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -83,7 +75,6 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         self.assertIn('project', diagram_data)
     
     def test_retrieve_uml_diagram(self):
-        """Test retrieving a specific UML diagram."""
         response = self.client.get(self.diagram_detail_url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -95,7 +86,6 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         self.assertEqual(response_data['project']['id'], str(self.project.id))
     
     def test_create_uml_diagram(self):
-        """Test creating a new UML diagram."""
         data = {
             'project': str(self.project.id),
             'name': 'New Activity Diagram',
@@ -121,7 +111,6 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         self.assertEqual(response_data['version_number'], 1)
     
     def test_create_diagram_invalid_project(self):
-        """Test creating diagram with invalid project."""
         data = {
             'project': str(uuid.uuid4()),  # Non-existent project
             'name': 'Invalid Project Diagram',
@@ -132,7 +121,6 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     
     def test_update_uml_diagram(self):
-        """Test updating UML diagram."""
         data = {
             'name': 'Updated User Classes',
             'description': 'Updated user management class diagram',
@@ -160,7 +148,6 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         self.assertEqual(response_data['diagram_data']['classes'][0]['name'], 'User')
     
     def test_delete_uml_diagram(self):
-        """Test deleting UML diagram."""
         response = self.client.delete(self.diagram_detail_url)
         
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -170,7 +157,6 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         )
     
     def test_filter_diagrams_by_type(self):
-        """Test filtering diagrams by type."""
         response = self.client.get(f'{self.diagrams_url}?diagram_type=CLASS')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -180,7 +166,6 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
             self.assertEqual(diagram['diagram_type'], 'CLASS')
     
     def test_filter_diagrams_by_status(self):
-        """Test filtering diagrams by status."""
 
         self.sequence_diagram.status = 'APPROVED'
         self.sequence_diagram.save()
@@ -194,7 +179,6 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
             self.assertEqual(diagram['status'], 'APPROVED')
     
     def test_search_diagrams(self):
-        """Test searching diagrams by name and description."""
         response = self.client.get(f'{self.diagrams_url}?search=User')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -208,7 +192,6 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         self.assertTrue(found_user_diagram)
     
     def test_order_diagrams(self):
-        """Test ordering diagrams by different fields."""
         response = self.client.get(f'{self.diagrams_url}?ordering=name')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -219,7 +202,6 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
     
     @patch('apps.uml_diagrams.models.UMLDiagram.get_export_data')
     def test_export_diagram_data(self, mock_export):
-        """Test exporting diagram data."""
         mock_export.return_value = {
             'diagram_id': str(self.class_diagram.id),
             'name': self.class_diagram.name,
@@ -243,7 +225,6 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
     
     @patch('apps.uml_diagrams.models.UMLDiagram.get_diagram_statistics')
     def test_diagram_statistics(self, mock_stats):
-        """Test retrieving diagram statistics."""
         mock_stats.return_value = {
             'total_classes': 5,
             'total_relationships': 8,
@@ -267,7 +248,6 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
     
     @patch('apps.uml_diagrams.models.UMLDiagram.validate_complete_diagram')
     def test_validate_diagram(self, mock_validate):
-        """Test diagram validation."""
         mock_validate.return_value = {
             'is_valid': True,
             'validation_score': 92,
@@ -293,7 +273,6 @@ class UMLDiagramViewSetTestCase(EnterpriseTestCase):
         mock_validate.assert_called_once()
     
     def test_unauthorized_access(self):
-        """Test unauthorized access to other user's diagrams."""
 
         other_diagram = UMLDiagramFactory(
             project=self.other_project,
@@ -344,13 +323,11 @@ class UMLElementViewSetTestCase(EnterpriseTestCase):
         )
     
     def setUp(self):
-        """Set up test environment for each test."""
         super().setUp()
         self.elements_url = reverse('uml_diagrams:umlelement-list')
         self.element_detail_url = reverse('uml_diagrams:umlelement-detail', args=[self.user_class.id])
     
     def test_list_elements(self):
-        """Test listing UML elements."""
         response = self.client.get(self.elements_url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -360,7 +337,6 @@ class UMLElementViewSetTestCase(EnterpriseTestCase):
         self.assertTrue(len(response_data['results']) >= 2)
     
     def test_retrieve_element(self):
-        """Test retrieving a specific UML element."""
         response = self.client.get(self.element_detail_url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -371,7 +347,6 @@ class UMLElementViewSetTestCase(EnterpriseTestCase):
         self.assertEqual(response_data['element_type'], 'class')
     
     def test_create_element(self):
-        """Test creating a new UML element."""
         data = {
             'diagram': str(self.diagram.id),
             'element_type': 'class',
@@ -396,7 +371,6 @@ class UMLElementViewSetTestCase(EnterpriseTestCase):
         self.assertEqual(response_data['position_y'], 150)
     
     def test_update_element(self):
-        """Test updating UML element."""
         data = {
             'name': 'EnterpriseUser',
             'properties': {
@@ -417,7 +391,6 @@ class UMLElementViewSetTestCase(EnterpriseTestCase):
         self.assertEqual(response_data['position_y'], 200)
     
     def test_delete_element(self):
-        """Test deleting UML element."""
         response = self.client.delete(self.element_detail_url)
         
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -428,7 +401,6 @@ class UMLElementViewSetTestCase(EnterpriseTestCase):
         )
     
     def test_filter_elements_by_diagram(self):
-        """Test filtering elements by diagram."""
         response = self.client.get(f'{self.elements_url}?diagram={self.diagram.id}')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -438,7 +410,6 @@ class UMLElementViewSetTestCase(EnterpriseTestCase):
             self.assertEqual(element['diagram']['id'], str(self.diagram.id))
     
     def test_filter_elements_by_type(self):
-        """Test filtering elements by type."""
 
         UMLElementFactory(
             diagram=self.diagram,
@@ -456,11 +427,9 @@ class UMLElementViewSetTestCase(EnterpriseTestCase):
 
 
 class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
-    """Comprehensive tests for UMLRelationshipViewSet."""
     
     @classmethod
     def setUpTestData(cls):
-        """Set up test data for UML relationship tests."""
         super().setUpTestData()
         
         cls.workspace = WorkspaceFactory(owner=cls.test_user)
@@ -492,7 +461,6 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
         )
     
     def setUp(self):
-        """Set up test environment for each test."""
         super().setUp()
         self.relationships_url = reverse('uml_diagrams:umlrelationship-list')
         self.relationship_detail_url = reverse(
@@ -501,7 +469,6 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
         )
     
     def test_list_relationships(self):
-        """Test listing UML relationships."""
         response = self.client.get(self.relationships_url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -511,7 +478,6 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
         self.assertTrue(len(response_data['results']) >= 1)
     
     def test_retrieve_relationship(self):
-        """Test retrieving a specific UML relationship."""
         response = self.client.get(self.relationship_detail_url)
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -552,7 +518,6 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
         self.assertEqual(response_data['target_element']['id'], str(product_element.id))
     
     def test_update_relationship(self):
-        """Test updating UML relationship."""
         data = {
             'relationship_type': 'aggregation',
             'properties': {
@@ -570,7 +535,6 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
         self.assertEqual(response_data['properties']['multiplicity'], '1..*')
     
     def test_delete_relationship(self):
-        """Test deleting UML relationship."""
         response = self.client.delete(self.relationship_detail_url)
         
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -581,7 +545,6 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
         )
     
     def test_filter_relationships_by_diagram(self):
-        """Test filtering relationships by diagram."""
         response = self.client.get(f'{self.relationships_url}?diagram={self.diagram.id}')
         
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -591,7 +554,6 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
             self.assertEqual(relationship['diagram']['id'], str(self.diagram.id))
     
     def test_filter_relationships_by_type(self):
-        """Test filtering relationships by type."""
 
         UMLRelationshipFactory(
             diagram=self.diagram,
@@ -609,7 +571,6 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
             self.assertEqual(relationship['relationship_type'], 'inheritance')
     
     def test_invalid_relationship_creation(self):
-        """Test creating relationship with invalid elements."""
         data = {
             'diagram': str(self.diagram.id),
             'source_element': str(uuid.uuid4()),  # Non-existent element
@@ -621,7 +582,6 @@ class UMLRelationshipViewSetTestCase(EnterpriseTestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
     
     def test_self_relationship_creation(self):
-        """Test creating self-referencing relationship."""
         data = {
             'diagram': str(self.diagram.id),
             'source_element': str(self.user_element.id),

@@ -26,16 +26,6 @@ class CacheService:
     def _generate_cache_key(cls, key_components: dict) -> str:
         """
         Genera clave de caché única usando hash SHA256.
-
-        Args:
-            key_components: Diccionario con componentes de la clave
-
-        Returns:
-            Clave de caché única con prefijo
-
-        Example:
-            >>> CacheService._generate_cache_key({"query": "test"})
-            'ai_assistant:a94a8fe5ccb19ba61c4c0873d391e987982fbbd3'
         """
         key_string = json.dumps(key_components, sort_keys=True)
         key_hash = hashlib.sha256(key_string.encode()).hexdigest()
@@ -45,12 +35,6 @@ class CacheService:
     def get(cls, key_components: dict) -> Optional[Any]:
         """
         Obtiene valor del caché.
-
-        Args:
-            key_components: Componentes para generar clave de caché
-
-        Returns:
-            Valor cacheado o None si no existe/expiró
         """
         cache_key = cls._generate_cache_key(key_components)
         try:
@@ -68,14 +52,6 @@ class CacheService:
     ) -> bool:
         """
         Guarda valor en caché con TTL.
-
-        Args:
-            key_components: Componentes para generar clave de caché
-            value: Valor a cachear
-            ttl: Time-to-live en segundos (default: 300)
-
-        Returns:
-            True si se guardó exitosamente, False en caso contrario
         """
         cache_key = cls._generate_cache_key(key_components)
         try:
@@ -90,12 +66,6 @@ class CacheService:
     def delete(cls, key_components: dict) -> bool:
         """
         Elimina valor del caché.
-
-        Args:
-            key_components: Componentes para generar clave de caché
-
-        Returns:
-            True si se eliminó, False si no existía o hubo error
         """
         cache_key = cls._generate_cache_key(key_components)
         try:
@@ -110,12 +80,6 @@ class CacheService:
     def clear_pattern(cls, pattern: str) -> int:
         """
         Elimina todas las claves que coinciden con patrón.
-
-        Args:
-            pattern: Patrón de búsqueda (ej: "diagram:*")
-
-        Returns:
-            Número de claves eliminadas
         """
         try:
             full_pattern = f"{cls.CACHE_PREFIX}:{pattern}"
